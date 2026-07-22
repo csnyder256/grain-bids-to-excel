@@ -31,6 +31,7 @@ F_BODY = Font(name="Calibri", size=11, color=INK)
 F_BODY_BOLD = Font(name="Calibri", size=11, bold=True, color=INK)
 F_SMALL = Font(name="Calibri", size=9, italic=True, color=MUTED)
 F_LINK = Font(name="Calibri", size=11, color=BRAND_MID, underline="single")
+F_BODY_OK = Font(name="Calibri", size=11, color=POS_GREEN)
 
 # ---- fills ----
 FILL_HEADER = PatternFill("solid", fgColor=BRAND_DARK)
@@ -105,3 +106,12 @@ BADGE_FILLS = {
     "ACTION": (ACTION_FILL, ACTION_TEXT),
     "CHECK": (AGING_FILL, AGING_TEXT),
 }
+
+
+def badge(status: str) -> tuple[PatternFill, Font]:
+    """Fill + bold text colour for one status badge (FRESH/AGING/STALE/...).
+    Data-dependent, so it is a factory rather than a constant - but the
+    Calibri/size/bold decision still lives here, not in the sheet writers."""
+    fill, textcol = BADGE_FILLS.get(status, (BAND, INK))
+    return (PatternFill("solid", fgColor=fill),
+            Font(name="Calibri", size=11, bold=True, color=textcol))

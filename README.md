@@ -85,7 +85,7 @@ Layering rules the code actually holds to:
 - `bidboard/paths.py` defines the entire on-disk contract in one file (`ROOT_DIR`, `DATA_DIR`, `SPREADSHEETS_DIR`, `LOCK_PATH`, `BROWSERS_DIR`). That is why "nothing installs outside the folder" is literally true.
 - `engine/store.py` is the only module that touches SQLite. Eleven tables: `meta`, `companies`, `sites`, `robots_cache`, `scan_runs`, `page_scans`, `bids`, `flags`, `discovered_links`, `resolve_candidates`, `builds`. WAL mode, single-writer discipline, versioned forward-only migrations.
 - Preferences live in JSON, records live in SQLite, and the two never mix. `settings.py` validates the whole settings document against a JSON schema on every write, `additionalProperties: false` throughout, plus per-company overrides resolved by `resolve(settings, company_id)`.
-- `report/styles.py` is the single theme module. No inline `Font()` anywhere else.
+- `report/styles.py` is the single theme module: `grep -rn "Font(" app/src --include=*.py` returns hits in `styles.py` and nowhere else. Even the data-dependent status badges go through a `styles.badge(status)` factory rather than an inline `Font()` in a sheet writer.
 - Every parsed field keeps its verbatim page text beside it in `engine/types.py`. A parse failure degrades a row to raw-plus-note rather than dropping it.
 - `web/results_api.py` resolves any requested path and refuses anything outside `SPREADSHEETS_DIR` with "That file is outside the Spreadsheets folder." A real path-traversal guard, on a local server, because the endpoint shells out to open files.
 
@@ -145,7 +145,7 @@ app/src/bidboard/
   paths.py                on-disk contract, one file
   settings.py             342 lines: JSON schema, defaults, per-company override resolution
   engine/     13 modules  store.py 675, extractor.py 498, fetcher.py 462, normalize.py 395
-  report/      8 modules  layout.py 410, builder.py 262, health.py 184
+  report/      8 modules  layout.py 402, builder.py 262, health.py 184
   web/         6 blueprints, 35 routes
   services/    scan_manager.py, scheduler.py
   templates/   8 Jinja templates
@@ -153,7 +153,7 @@ app/src/bidboard/
 app/tests/    9 test modules + conftest.py, 1,155 lines, 97 tests
 ```
 
-Module counts exclude `__init__.py`. Measured in this tree: 6,194 lines of application source across 38 Python files, 1,155 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
+Module counts exclude `__init__.py`. Measured in this tree: 6,196 lines of application source across 38 Python files, 1,155 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
 
 ## Testing
 

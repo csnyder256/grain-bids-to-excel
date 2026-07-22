@@ -78,7 +78,7 @@ not. After that one-time step, double-clicking works normally forever.
 `read-me-first.html`.
 
 ## To build the zip
-Copy the working tree EXCLUDING `.git/`, `.claude/`, `.gitattributes`,
+Copy the working tree EXCLUDING `.git/`, `.gitattributes`,
 `app/data/`, `app/browsers/`, `app/python/` (Windows-only - never include
 it), `app/python-mac/` (fetched by the recipient's own Mac, never shipped),
 `Spreadsheets/` contents, all `__pycache__/`, `SETUP.bat`, `RUN.bat`,

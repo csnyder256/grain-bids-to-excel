@@ -1,5 +1,7 @@
 """Sheet writers - title blocks, bid tables, cover, data-health, all-bids.
-Every style comes from styles.py; no inline Font() anywhere else."""
+Every style comes from styles.py - constants for the fixed theme, and
+styles.badge(status) for the data-dependent status badges. This module
+never constructs an openpyxl style object of its own."""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -312,10 +314,7 @@ def write_cover(ws, meta: dict, health: list, best: list, needs_attention: list,
         c.font = ST.F_BODY
         ws.cell(row=r, column=4, value=h.age_days if h.age_days is not None else "").font = ST.F_BODY
         sc = ws.cell(row=r, column=5, value=h.status)
-        fill, textcol = ST.BADGE_FILLS.get(h.status, (ST.BAND, ST.INK))
-        from openpyxl.styles import Font, PatternFill
-        sc.fill = PatternFill("solid", fgColor=fill)
-        sc.font = Font(name="Calibri", size=11, bold=True, color=textcol)
+        sc.fill, sc.font = ST.badge(h.status)
         ws.cell(row=r, column=6, value=h.rows).font = ST.F_BODY
         r += 1
 
@@ -348,16 +347,12 @@ def write_cover(ws, meta: dict, health: list, best: list, needs_attention: list,
     ws.cell(row=r, column=1, value="Needs attention").font = ST.F_H2
     r += 1
     if not needs_attention:
-        from openpyxl.styles import Font
         c = ws.cell(row=r, column=1, value="Everything looks up to date.")
-        c.font = Font(name="Calibri", size=11, color=ST.POS_GREEN)
+        c.font = ST.F_BODY_OK
     else:
         for item in needs_attention:
             bc = ws.cell(row=r, column=1, value=item["badge"])
-            fill, textcol = ST.BADGE_FILLS.get(item["badge"], (ST.BAND, ST.INK))
-            from openpyxl.styles import Font, PatternFill
-            bc.fill = PatternFill("solid", fgColor=fill)
-            bc.font = Font(name="Calibri", size=11, bold=True, color=textcol)
+            bc.fill, bc.font = ST.badge(item["badge"])
             ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=8)
             mc = ws.cell(row=r, column=2, value=item["message"])
             mc.font = ST.F_BODY
@@ -393,10 +388,7 @@ def write_data_health(ws, health: list, eff, now):
         c.font = ST.F_BODY
         ws.cell(row=r, column=5, value=h.age_days if h.age_days is not None else "").font = ST.F_BODY
         sc = ws.cell(row=r, column=6, value=h.status)
-        fill, textcol = ST.BADGE_FILLS.get(h.status, (ST.BAND, ST.INK))
-        from openpyxl.styles import Font, PatternFill
-        sc.fill = PatternFill("solid", fgColor=fill)
-        sc.font = Font(name="Calibri", size=11, bold=True, color=textcol)
+        sc.fill, sc.font = ST.badge(h.status)
         ws.cell(row=r, column=7, value=h.same_as_last).font = ST.F_BODY
         nc = ws.cell(row=r, column=8, value=h.notices)
         nc.font = ST.F_BODY

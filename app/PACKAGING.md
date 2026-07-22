@@ -41,7 +41,7 @@ Everything stays inside the folder; nothing touches system Python or the
 registry. Re-running SETUP is safe (idempotent).
 
 ## To build the zip
-Copy the working tree EXCLUDING `.git/`, `.claude/`, `.gitattributes`,
+Copy the working tree EXCLUDING `.git/`, `.gitattributes`,
 `app/data/`, `app/browsers/`, `Spreadsheets/` contents, all `__pycache__/`,
 and - important - any `Lib/`, `Scripts/`, or `Include/` inside `app/python/`
 (pip creates those; running SETUP or tests on the dev machine can contaminate
