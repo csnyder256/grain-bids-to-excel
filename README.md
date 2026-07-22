@@ -2,6 +2,7 @@
 
 **Scrapes grain elevator cash bids from a dozen mismatched websites and hands you one clean Excel workbook.**
 
+[![ci](https://github.com/csnyder256/grain-bids-to-excel/actions/workflows/ci.yml/badge.svg)](https://github.com/csnyder256/grain-bids-to-excel/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/python-CPython%203.12%20%2F%203.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-97%20passing-brightgreen?style=flat-square)
