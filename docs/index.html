@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>grain-bids-to-excel</title>
+<meta name="description" content="Scrapes grain elevator cash bids from a dozen mismatched websites and hands you one clean Excel workbook.">
+<style>
+  :root {
+    --bg: #faf7f0;
+    --bg-panel: #ffffff;
+    --bg-code: #f2eee3;
+    --ink: #23201a;
+    --ink-soft: #5c564a;
+    --ink-faint: #8a8375;
+    --rule: #e2dccc;
+    --accent: #9a6b12;
+    --accent-strong: #7d5509;
+    --accent-wash: #f5ecd8;
+    --grain: #4a7a3d;
+    --shadow: 0 1px 2px rgba(35,32,26,.05), 0 8px 24px -12px rgba(35,32,26,.18);
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16150f;
+      --bg-panel: #1e1d15;
+      --bg-code: #12110c;
+      --ink: #ece7da;
+      --ink-soft: #b1ab99;
+      --ink-faint: #837d6d;
+      --rule: #33301f;
+      --accent: #e0b354;
+      --accent-strong: #f0c977;
+      --accent-wash: #2a2416;
+      --grain: #8fc07c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+  .wrap { width: min(100% - 2.5rem, 62rem); margin-inline: auto; }
+  a { color: var(--accent-strong); }
+  @media (prefers-color-scheme: dark) { a { color: var(--accent); } }
+
+  /* ---------- masthead ---------- */
+  header.hero {
+    padding: clamp(3rem, 9vw, 6.5rem) 0 clamp(2.5rem, 6vw, 4rem);
+    border-bottom: 1px solid var(--rule);
+    background:
+      linear-gradient(180deg, var(--accent-wash) 0%, transparent 70%);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent-strong);
+    margin: 0 0 1.1rem;
+  }
+  @media (prefers-color-scheme: dark) { .eyebrow { color: var(--accent); } }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.9rem, 6vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.08;
+    margin: 0 0 1.2rem;
+    overflow-wrap: break-word;
+  }
+  .tagline {
+    font-family: var(--serif);
+    font-size: clamp(1.15rem, 3vw, 1.65rem);
+    line-height: 1.42;
+    color: var(--ink);
+    max-width: 34ch;
+    margin: 0 0 2rem;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+  .btn {
+    display: inline-block;
+    padding: .7rem 1.35rem;
+    border-radius: 2px;
+    font-size: .92rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--accent-strong);
+    background: var(--accent-strong);
+    color: #fffdf7;
+    transition: transform .12s ease, opacity .12s ease;
+  }
+  .btn:hover { transform: translateY(-1px); opacity: .92; }
+  .btn.ghost { background: transparent; color: var(--accent-strong); }
+  @media (prefers-color-scheme: dark) {
+    .btn { background: var(--accent); border-color: var(--accent); color: #17150d; }
+    .btn.ghost { background: transparent; color: var(--accent); }
+  }
+  .facts {
+    display: flex; flex-wrap: wrap; gap: .4rem .9rem;
+    margin-top: 2.2rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    color: var(--ink-faint);
+    letter-spacing: .04em;
+  }
+  .facts span::after { content: " /"; color: var(--rule); }
+  .facts span:last-child::after { content: ""; }
+
+  /* ---------- sections ---------- */
+  section { padding: clamp(2.75rem, 7vw, 4.75rem) 0; border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-family: var(--serif);
+    font-size: clamp(1.35rem, 3.4vw, 1.9rem);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0 0 .35rem;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 1.6rem;
+  }
+  p { margin: 0 0 1.1rem; max-width: 68ch; color: var(--ink-soft); }
+  p strong { color: var(--ink); font-weight: 600; }
+  .lead { font-size: 1.06rem; color: var(--ink); }
+
+  /* ---------- cards ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 1.1rem;
+    margin-top: 1.9rem;
+  }
+  .card {
+    background: var(--bg-panel);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.4rem 1.4rem 1.1rem;
+    box-shadow: var(--shadow);
+  }
+  .card h3 {
+    font-size: .95rem;
+    font-weight: 700;
+    margin: 0 0 .55rem;
+    letter-spacing: -.005em;
+  }
+  .card p { font-size: .91rem; margin-bottom: 0; }
+  .num {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .14em;
+    color: var(--accent-strong);
+    display: block;
+    margin-bottom: .7rem;
+  }
+  @media (prefers-color-scheme: dark) { .num { color: var(--accent); } }
+
+  /* ---------- code ---------- */
+  .scroller { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  pre {
+    margin: 0;
+    padding: 1.15rem 1.25rem;
+    background: var(--bg-code);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: .8rem;
+    line-height: 1.62;
+    color: var(--ink);
+    white-space: pre;
+  }
+  pre .c { color: var(--ink-faint); }
+  code:not(pre code) {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--bg-code);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: .08em .35em;
+    color: var(--ink);
+  }
+
+  /* ---------- steps ---------- */
+  ol.steps { margin: 1.4rem 0 0; padding: 0; list-style: none; counter-reset: s; }
+  ol.steps li {
+    counter-increment: s;
+    position: relative;
+    padding-left: 2.6rem;
+    margin-bottom: 1rem;
+    color: var(--ink-soft);
+    max-width: 62ch;
+  }
+  ol.steps li::before {
+    content: counter(s);
+    position: absolute; left: 0; top: .05rem;
+    width: 1.7rem; height: 1.7rem;
+    display: grid; place-items: center;
+    border: 1px solid var(--accent-strong);
+    color: var(--accent-strong);
+    border-radius: 50%;
+    font-family: var(--mono);
+    font-size: .78rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    ol.steps li::before { border-color: var(--accent); color: var(--accent); }
+  }
+
+  ul.plain { margin: 1.2rem 0 0; padding-left: 1.15rem; max-width: 68ch; color: var(--ink-soft); }
+  ul.plain li { margin-bottom: .55rem; }
+
+  .links { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1.5rem; }
+  .links a {
+    font-family: var(--mono);
+    font-size: .78rem;
+    text-decoration: none;
+    padding: .45rem .8rem;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--bg-panel);
+    color: var(--ink-soft);
+  }
+  .links a:hover { border-color: var(--accent); color: var(--accent-strong); }
+  @media (prefers-color-scheme: dark) { .links a:hover { color: var(--accent); } }
+
+  .note {
+    border-left: 2px solid var(--grain);
+    padding: .15rem 0 .15rem 1.1rem;
+    margin: 1.6rem 0 0;
+    max-width: 64ch;
+  }
+  .note p { margin: 0; font-size: .93rem; }
+
+  footer {
+    padding: 3rem 0 4rem;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-faint);
+    font-size: .85rem;
+  }
+  footer p { color: var(--ink-faint); margin-bottom: .4rem; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Portfolio project</p>
+    <h1>grain-bids-to-excel</h1>
+    <p class="tagline">Scrapes grain elevator cash bids from a dozen mismatched websites and hands you one clean Excel workbook.</p>
+    <div class="cta-row">
+      <a class="btn" href="https://github.com/csnyder256/grain-bids-to-excel">View on GitHub</a>
+      <a class="btn ghost" href="https://github.com/csnyder256/grain-bids-to-excel#quickstart">Quickstart</a>
+    </div>
+    <div class="facts">
+      <span>Python</span><span>Flask + Waitress</span><span>Playwright</span><span>SQLite WAL</span><span>openpyxl</span><span>97 tests passing</span><span>MIT</span>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">The problem</p>
+    <h2>One person, one tedious job</h2>
+    <p class="lead">Grain elevators publish "cash bids" (what they will pay today for corn, soybeans, wheat and so on) on their public websites. Every site does it differently. Some are plain HTML tables. Some are third-party widgets that only render after JavaScript runs. Some are lists of <code>&lt;div&gt;s</code> pretending to be a table.</p>
+    <p>Column names disagree. Prices show up as <code>4.23</code>, as <code>423-0s</code>, or as a basis you have to add to a futures price before the number means anything. Someone whose job depended on that data was visiting each site by hand, reading the tables, and retyping the numbers into a spreadsheet. Every day.</p>
+    <p>This app does that instead. Add companies once, click "Run a scan", get a formatted <code>.xlsx</code> workbook. It is not a platform. It is a small sharp tool built for one non-technical user, and it removed a daily chore.</p>
+    <div class="note">
+      <p>A local Flask app that serves only on <code>127.0.0.1</code>. The browser is just the window; nothing is exposed to the network. No login, no cloud, no LLM anywhere in the extraction path.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">The interesting part</p>
+    <h2>Three engineering decisions worth reading</h2>
+    <div class="grid">
+      <article class="card">
+        <span class="num">01</span>
+        <h3>Zip it and email it</h3>
+        <p>The user could not be asked to install a toolchain. So the deliverable is a folder: double-click SETUP once, double-click RUN every time, Windows and macOS. A vendored embeddable interpreter with an edited <code>._pth</code>, a mac branch that picks its build by <code>uname -m</code>, and a packaging check that requires <code>import flask</code> to <em>fail</em> in the bundled interpreter before shipping, so a dev run cannot contaminate it.</p>
+      </article>
+      <article class="card">
+        <span class="num">02</span>
+        <h3>Scoring, not selectors</h3>
+        <p>A CSS selector per elevator does not survive the first redesign. The extractor discovers candidate containers (including virtual grids built by grouping sibling elements on tag plus class signature), then scores each on eight independent signals. Above 8.0 it is accepted; between 4.0 and 8.0 the rows still come out, marked <code>low_confidence</code> instead of silently trusted or silently dropped.</p>
+      </article>
+      <article class="card">
+        <span class="num">03</span>
+        <h3>Domain arithmetic as a parser</h3>
+        <p>Bid tables often carry two signed-decimal columns a parser cannot tell apart: basis and day change. The extractor tests each candidate against the trade identity <code>basis == cash - futures</code> within 0.02 and takes the column that agrees on at least 70% of rows. It also decodes the trade's eighths notation: <code>415-0s</code> is $4.15, <code>+0-2</code> is +$0.0025.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Shape of it</p>
+    <h2>How it fits together</h2>
+    <p>A browser is a last resort. Tier 1 is <code>requests</code>; escalation to Playwright Chromium happens on three specific conditions, not by default. Failures never raise to the UI: every one becomes a flag with plain English written for a grain merchandiser, so one bad site degrades a run to <em>partial</em> instead of aborting it.</p>
+    <div class="scroller">
+<pre>SETUP / RUN launchers        double-clickable, no admin rights, no system Python
+        |
+        v
+launcher.py                  lock file + /api/ping handshake, waitress on 127.0.0.1
+        |
+        v
+web/         6 blueprints, 35 routes: 6 rendered pages, 29 JSON endpoints
+        |    Jinja + vanilla CSS/JS, no build step, no node_modules
+        v
+services/    ScanManager: one thread, one queue, 2000-event ring buffer
+        |    APScheduler enqueues through the same single lane
+        v
+engine/      fetcher -&gt; detect -&gt; extractor -&gt; headers -&gt; normalize
+        |    discover / resolve / probe / staleness / store / pipeline
+        v
+report/      builder -&gt; queries -&gt; health -&gt; layout -&gt; charts -&gt; naming -&gt; files
+        |
+        v
+Spreadsheets/*.xlsx          master / per-company / per-commodity workbooks</pre>
+    </div>
+    <ul class="plain">
+      <li><strong>One module touches SQLite.</strong> Eleven tables, WAL mode, single-writer discipline, versioned forward-only migrations.</li>
+      <li><strong>Preferences in JSON, records in SQLite,</strong> and the two never mix. The whole settings document is schema-validated on every write, with per-company overrides.</li>
+      <li><strong>Excel output is hardened for someone who will not debug it.</strong> Atomic writes, never overwrite, a fallback name when the file is open in Excel, and a test that unzips the workbook to prove there are no external links.</li>
+      <li><strong>Nothing installs outside the folder.</strong> One <code>paths.py</code> defines the entire on-disk contract, and file endpoints refuse any path outside the Spreadsheets directory.</li>
+      <li><strong>It can run itself</strong> at 7:30 every morning when the schedule is turned on.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Getting it running</p>
+    <h2>Quickstart</h2>
+    <p>For the person it was built for, the entire procedure is three steps.</p>
+    <ol class="steps">
+      <li>Unzip the folder anywhere.</li>
+      <li>Double-click <code>SETUP</code>. Once. Needs internet, no admin rights.</li>
+      <li>Double-click <code>RUN</code>. The browser opens by itself.</li>
+    </ol>
+    <p style="margin-top:2rem">For a developer, the public repository does not ship the bundled interpreter or the browsers, so run it against your own Python.</p>
+    <div class="scroller">
+<pre>py -3 -m pip install -r app/requirements.txt pytest
+py -3 -m playwright install chromium    <span class="c"># only for Tier-2 JS pages</span>
+
+py -3 -m pytest app/tests               <span class="c"># 97 passed</span>
+py -3 app/src/launcher.py               <span class="c"># http://127.0.0.1:8383</span></pre>
+    </div>
+    <div class="links">
+      <a href="https://github.com/csnyder256/grain-bids-to-excel#readme">Full README</a>
+      <a href="https://github.com/csnyder256/grain-bids-to-excel/blob/main/app/PACKAGING.md">PACKAGING.md (Windows)</a>
+      <a href="https://github.com/csnyder256/grain-bids-to-excel/blob/main/app/PACKAGING-MAC.md">PACKAGING-MAC.md</a>
+      <a href="https://github.com/csnyder256/grain-bids-to-excel/blob/main/app/data/SETTINGS-TEMPLATE.md">SETTINGS-TEMPLATE.md</a>
+      <a href="https://github.com/csnyder256/grain-bids-to-excel/blob/main/LICENSE">LICENSE</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Straight answers</p>
+    <h2>Honest notes</h2>
+    <ul class="plain">
+      <li>Extraction is heuristic. A low-scoring page still returns rows, flagged <code>low_confidence</code>, so output is worth spot-checking when a new site is added.</li>
+      <li>Search-engine name resolution is fragile by nature. Three fallback transports exist because search engines block scripted clients, and the user always confirms a match rather than the app auto-accepting one.</li>
+      <li>robots.txt is honored by default, with a 24-hour cache and a 2 to 5 second jittered politeness delay per domain. The check is deliberately fail-open. The toggle exists under Advanced settings and turning it off is the operator's call.</li>
+      <li>Single-user by design. No auth, no concurrent writers, no deployment story beyond <code>127.0.0.1</code>.</li>
+      <li>Tests run locally. There is no CI configured, and live scans were verified by hand.</li>
+      <li>Working and shipped. It was used for its actual purpose. It is not under active development.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>MIT licensed. Bundled webfonts are SIL OFL 1.1 and ship with their notices.</p>
+    <p>Built by Cade. <a href="https://github.com/csnyder256/grain-bids-to-excel">github.com/csnyder256/grain-bids-to-excel</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

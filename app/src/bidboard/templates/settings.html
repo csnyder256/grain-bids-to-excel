@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form id="settings-form" class="stack" style="max-width: 720px;">
+
+  <fieldset class="settings-group">
+    <legend>Your spreadsheets</legend>
+
+    <div class="field">
+      <label for="set-sort">Sort bids by</label>
+      <select class="input" id="set-sort" name="sort_by">
+        <option value="delivery_start" selected>Delivery date (soonest first)</option>
+        <option value="cash_desc">Best cash bid first</option>
+        <option value="commodity">Commodity (A–Z)</option>
+        <option value="location">Location (A–Z)</option>
+      </select>
+      <div class="hint">How rows are ordered inside each sheet.</div>
+    </div>
+
+    <div class="field">
+      <label for="set-group">Group sheets by</label>
+      <select class="input" id="set-group" name="group_by">
+        <option value="commodity" selected>Commodity - corn together, beans together</option>
+        <option value="location">Location - one block per elevator</option>
+        <option value="none">No grouping - one continuous list</option>
+      </select>
+      <div class="hint">One sheet per company is easiest to print and hand to someone.</div>
+    </div>
+
+    <div class="field">
+      <label>Charts inside the Excel file</label>
+      <select class="input" name="charts">
+        <option value="none" selected>No charts - just the numbers</option>
+        <option value="bars">Bar charts - cash bid by delivery period</option>
+        <option value="lines">Line charts - basis across deliveries</option>
+        <option value="both">Both</option>
+      </select>
+      <div class="hint">Charts are drawn right inside the spreadsheet, ready for a meeting.</div>
+    </div>
+  </fieldset>
+
+  <fieldset class="settings-group">
+    <legend>Automatic scans</legend>
+    <label class="check">
+      <input type="checkbox" name="schedule_enabled">
+      <span>Scan automatically on a schedule</span>
+    </label>
+    <div class="row" style="margin: var(--sp-2) 0 0 26px; gap: var(--sp-2);">
+      <select class="input" name="schedule_day" style="width:auto;">
+        <option value="daily" selected>Every day</option>
+        <option value="mon">Mondays</option>
+        <option value="tue">Tuesdays</option>
+        <option value="wed">Wednesdays</option>
+        <option value="thu">Thursdays</option>
+        <option value="fri">Fridays</option>
+      </select>
+      <span class="muted small">at</span>
+      <select class="input" name="schedule_hour" style="width:auto;">
+        {% for h in range(5, 19) %}
+        <option value="{{ h }}" {{ 'selected' if h == 7 }}>{{ h % 12 or 12 }} {{ 'AM' if h < 12 else 'PM' }}</option>
+        {% endfor %}
+      </select>
+      <select class="input" name="schedule_minute" style="width:auto;">
+        <option value="0">:00</option>
+        <option value="30" selected>:30</option>
+      </select>
+    </div>
+    <p class="hint" style="margin: var(--sp-2) 0 0 26px;" id="schedule-next"></p>
+    <p class="hint" style="margin: var(--sp-1) 0 0 26px;">
+      Runs only while {{ app_name }} is open - leave the RUN window open on scan days.
+    </p>
+  </fieldset>
+
+  <details class="advanced">
+    <summary>Advanced</summary>
+    <div class="advanced-body stack">
+      <div class="field" style="margin-top: var(--sp-4);">
+        <label for="set-horizon">How far ahead to include delivery periods</label>
+        <select class="input" id="set-horizon" name="horizon_months">
+          <option value="6">Next 6 months</option>
+          <option value="12" selected>Next 12 months</option>
+          <option value="24">Next 24 months</option>
+          <option value="0">Everything the sites list</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="set-decimals">Price decimal places</label>
+        <select class="input" id="set-decimals" name="decimals">
+          <option value="2">2 - like $4.10</option>
+          <option value="4" selected>4 - like $4.1000 (matches most bid sheets)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" name="respect_robots">
+          <span>Respect each site's crawl rules</span>
+        </label>
+        <div class="hint" style="margin-left: 26px;">
+          Some grain sites post a blanket rule asking automated tools not to visit - even
+          though they welcome Google. Leaving this off lets {{ app_name }} read those public
+          bid pages (slowly and politely, crediting each site in your spreadsheet). Turn it on
+          if you'd rather skip any page that asks bots to stay away.
+        </div>
+      </div>
+      <div class="field">
+        <label for="set-delay">Pause between page visits</label>
+        <select class="input" id="set-delay" name="politeness">
+          <option value="fast">Brief (1–3 seconds)</option>
+          <option value="normal" selected>Polite (2–5 seconds)</option>
+          <option value="slow">Gentle (4–8 seconds)</option>
+        </select>
+        <div class="hint">Longer pauses are kinder to the websites you're reading.</div>
+      </div>
+    </div>
+  </details>
+
+  <div class="row">
+    <button class="btn btn-primary" type="submit" id="save-settings-btn">Save settings</button>
+    <span class="muted small" id="settings-saved-note"></span>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

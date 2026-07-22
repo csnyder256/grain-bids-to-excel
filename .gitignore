@@ -1,0 +1,101 @@
+# ---------------------------------------------------------------
+# grain-bids-to-excel
+# The full working tree of this app is ~718 MB; the publishable
+# source is under 1 MB. Everything below is vendored third-party
+# binaries, live runtime state, or real scraped business data.
+# None of it belongs in the repository.
+# ---------------------------------------------------------------
+
+# --- Vendored third-party runtimes and browser binaries ---
+# Chromium and FFmpeg are not MIT-licensable and must not be committed.
+# Install them with: python -m playwright install chromium
+app/browsers/
+app/python/
+app/python-mac/
+app/get-pip.py
+
+# --- Packaged build artifacts ---
+dist/
+build/
+out/
+*.egg-info/
+*.zip
+*.dmg
+*.pkg
+*.exe
+*.tsbuildinfo
+!SETUP.bat
+!RUN.bat
+
+# --- Live runtime state: DB, WAL/SHM, logs, settings, lock files ---
+# app/data/settings.example.json and app/data/SETTINGS-TEMPLATE.md ship;
+# nothing else in app/data/ ever does.
+app/data/*
+!app/data/settings.example.json
+!app/data/SETTINGS-TEMPLATE.md
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.log
+setup-log.txt
+server.lock
+.setup-complete
+
+# --- Real scraped business data / tool output ---
+Spreadsheets/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# --- Third-party page captures ---
+# app/tests/fixtures/ ships ONLY hand-written synthetic markup.
+# Never commit a saved copy of a real company's page.
+app/tests/fixtures/*_capture.html
+app/tests/fixtures/live_*.html
+
+# --- Secrets and credentials ---
+.env
+.env.local
+.env.*.local
+*.local.yaml
+*.local.json
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+!.env.example
+!.env.sample
+
+# --- Python build/test artifacts ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# --- Node (only if tooling is ever added) ---
+node_modules/
+.next/
+coverage/
+
+# --- Agent / editor scratch ---
+.claude/
+.idea/
+.vscode/
+*.swp
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+desktop.ini

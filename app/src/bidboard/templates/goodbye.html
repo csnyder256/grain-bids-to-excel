@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ app_name }} has stopped</title>
+<link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="goodbye">
+  <div>
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="margin-bottom: 16px;">
+      <path d="M12 21V8" stroke="#B97F10" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M12 8c-3 0-4.5-1.8-4.5-4.5C10.5 3.5 12 5.3 12 8Zm0 0c3 0 4.5-1.8 4.5-4.5C13.5 3.5 12 5.3 12 8Z" fill="#B97F10"/>
+      <path d="M12 13c-3 0-4.5-1.8-4.5-4.5 3 0 4.5 1.8 4.5 4.5Zm0 0c3 0 4.5-1.8 4.5-4.5-3 0-4.5 1.8-4.5 4.5Z" fill="#B97F10" opacity="0.75"/>
+    </svg>
+    <h2 style="font-family: var(--font-display); color: var(--green-900); font-size: var(--fs-28); margin-bottom: 8px;">
+      {{ app_name }} has stopped.
+    </h2>
+    <p class="muted" style="max-width: 44ch;">
+      You can close this tab. To start again, double-click <strong>RUN</strong> in the
+      {{ app_name }} folder - everything is saved right where you left it.
+    </p>
+  </div>
+</div>
+</body>
+</html>

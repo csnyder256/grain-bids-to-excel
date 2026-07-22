@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BidBoard - Start Here</title>
+<style>
+  :root {
+    --paper:#FAF8F4; --surface:#FFFFFF; --ink:#26221B; --soft:#6B6459;
+    --line:#E5DFD3; --green-900:#1C3A22; --green-800:#23492B; --green-600:#2F6B3A;
+    --gold:#B97F10; --wheat:#E8C766; --clay:#B4452F;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif; line-height:1.6;
+    padding:40px 20px;
+  }
+  .wrap { max-width:720px; margin:0 auto; }
+  .brand { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+  .brand svg { flex-shrink:0; }
+  .brand h1 { font-size:34px; margin:0; color:var(--green-900);
+    font-family:Georgia,"Times New Roman",serif; font-weight:700; }
+  .tagline { color:var(--soft); font-size:17px; margin:0 0 32px 38px; }
+  .card { background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:28px 32px; box-shadow:0 4px 16px rgb(38 34 27/.08);
+    margin-bottom:20px; }
+  h2 { color:var(--green-800); font-size:20px; margin:0 0 16px; }
+  .step { display:flex; gap:18px; align-items:flex-start; margin-bottom:22px; }
+  .step:last-child { margin-bottom:0; }
+  .num { flex-shrink:0; width:40px; height:40px; border-radius:50%;
+    background:var(--green-600); color:#fff; display:grid; place-items:center;
+    font-weight:700; font-size:18px; }
+  .step h3 { margin:6px 0 4px; font-size:17px; }
+  .step p { margin:0; color:var(--soft); }
+  .step code { background:#F3EFE7; padding:2px 8px; border-radius:5px;
+    font-family:Consolas,monospace; font-size:14px; color:var(--green-800);
+    font-weight:600; }
+  .note { background:#FBEEC9; border:1px solid #EBD9A0; border-radius:10px;
+    padding:16px 20px; color:#6B5310; font-size:15px; }
+  .note strong { color:#4A3908; }
+  .foot { text-align:center; color:var(--soft); font-size:14px; margin-top:28px; }
+  .pill { display:inline-block; background:var(--green-600); color:#fff;
+    padding:3px 12px; border-radius:999px; font-size:13px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+      <path d="M12 21V8" stroke="#C8A44D" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M12 8c-3 0-4.5-1.8-4.5-4.5C10.5 3.5 12 5.3 12 8Zm0 0c3 0 4.5-1.8 4.5-4.5C13.5 3.5 12 5.3 12 8Z" fill="#C8A44D"/>
+      <path d="M12 13c-3 0-4.5-1.8-4.5-4.5 3 0 4.5 1.8 4.5 4.5Zm0 0c3 0 4.5-1.8 4.5-4.5-3 0-4.5 1.8-4.5 4.5Z" fill="#C8A44D" opacity="0.8"/>
+    </svg>
+    <h1>BidBoard</h1>
+  </div>
+  <p class="tagline">Cash bids from every elevator, in one spreadsheet.</p>
+
+  <div class="card">
+    <h2>Getting started takes two clicks</h2>
+
+    <div class="step">
+      <div class="num">1</div>
+      <div>
+        <h3>Double-click <code>SETUP</code> - just once</h3>
+        <p>This gets everything ready. It takes a few minutes and needs an internet
+        connection. When it says <strong>SETUP COMPLETE</strong>, you're done with this step forever.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">2</div>
+      <div>
+        <h3>Double-click <code>RUN</code> - every time you want bids</h3>
+        <p>BidBoard opens in your web browser automatically. Add the grain companies
+        you care about, click <strong>Run a scan</strong>, and your spreadsheet lands in the
+        <code>Spreadsheets</code> folder.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Good to know</h2>
+    <div class="note">
+      <strong>If Windows shows a blue "Windows protected your PC" box:</strong>
+      that's normal for a brand-new program. Click <strong>More info</strong>, then
+      <strong>Run anyway</strong>. BidBoard is just a folder of ordinary files - 
+      it doesn't install anything into Windows.
+    </div>
+    <p style="margin-top:18px; color:var(--soft);">
+      Keep this whole folder together, wherever you like. Everything BidBoard needs
+      lives inside it, and your spreadsheets always appear in the <code>Spreadsheets</code>
+      folder right here.
+    </p>
+    <p style="color:var(--soft); margin-bottom:0;">
+      If setup ever has trouble, there's a file called <code>setup-log.txt</code> right
+      next to SETUP - send that to whoever set this up for you and they'll know exactly what happened.
+    </p>
+  </div>
+
+  <div class="foot">
+    <span class="pill">You're all set</span>
+    <p style="margin-top:12px;">Double-click <strong>SETUP</strong> to begin.</p>
+  </div>
+</div>
+</body>
+</html>

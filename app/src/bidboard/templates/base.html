@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page_title }} · {{ app_name }}</title>
+<link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="frame">
+
+  <aside class="sidebar">
+    <div class="brand">
+      {# wheat-sprig mark #}
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 21V8" stroke="#E8C766" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M12 8c-3 0-4.5-1.8-4.5-4.5C10.5 3.5 12 5.3 12 8Zm0 0c3 0 4.5-1.8 4.5-4.5C13.5 3.5 12 5.3 12 8Z" fill="#E8C766"/>
+        <path d="M12 13c-3 0-4.5-1.8-4.5-4.5 3 0 4.5 1.8 4.5 4.5Zm0 0c3 0 4.5-1.8 4.5-4.5-3 0-4.5 1.8-4.5 4.5Z" fill="#E8C766" opacity="0.8"/>
+        <path d="M12 18c-3 0-4.5-1.8-4.5-4.5 3 0 4.5 1.8 4.5 4.5Zm0 0c3 0 4.5-1.8 4.5-4.5-3 0-4.5 1.8-4.5 4.5Z" fill="#E8C766" opacity="0.6"/>
+      </svg>
+      <span class="brand-name">{{ app_name }}</span>
+    </div>
+
+    <nav class="nav" aria-label="Main">
+      <a class="nav-link {{ 'active' if active_nav == 'home' }}" href="{{ url_for('pages.home') }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+        <span>Home</span>
+      </a>
+      <a class="nav-link {{ 'active' if active_nav == 'companies' }}" href="{{ url_for('pages.companies') }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l6-4v18"/><path d="M9 21V11l6-3v13"/><path d="M15 21V12l6-2v11"/><path d="M2 21h20"/></svg>
+        <span>Companies</span>
+      </a>
+      <a class="nav-link {{ 'active' if active_nav == 'scan' }}" href="{{ url_for('pages.scan') }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <span>Run a Scan</span>
+      </a>
+      <a class="nav-link {{ 'active' if active_nav == 'results' }}" href="{{ url_for('pages.results') }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+        <span>Results</span>
+      </a>
+      <a class="nav-link {{ 'active' if active_nav == 'settings' }}" href="{{ url_for('pages.settings') }}">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <a href="#" id="help-link">Need help?</a>
+      <div>{{ app_name }} {{ version }}</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="page-title">{{ page_title }}</h1>
+      <div class="topbar-actions">
+        <span class="status-pill idle" id="status-pill"><span class="dot"></span><span id="status-text">Idle</span></span>
+        <div class="menu" id="overflow-menu">
+          <button class="menu-btn" aria-label="More options" aria-haspopup="true">⋯</button>
+          <div class="menu-list" role="menu">
+            <button class="menu-item" id="open-folder-btn" role="menuitem">Open the Spreadsheets folder</button>
+            <button class="menu-item danger" id="quit-btn" role="menuitem">Quit {{ app_name }}</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      {% if guidance %}
+      <div class="guidance">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>
+        <span>{{ guidance }}</span>
+      </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+{# Quit confirmation #}
+<div class="modal-backdrop" id="quit-modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="quit-title">
+    <h3 id="quit-title">Quit {{ app_name }}?</h3>
+    <p class="muted">The app will stop until you double-click RUN again. Your companies, settings, and spreadsheets are all saved.</p>
+    <div class="row" style="justify-content: flex-end; margin-top: var(--sp-5);">
+      <button class="btn btn-secondary" data-close-modal>Keep it running</button>
+      <button class="btn btn-danger" id="quit-confirm">Quit</button>
+    </div>
+  </div>
+</div>
+
+{# Help slide-over (static copy for now) #}
+<div class="modal-backdrop" id="help-modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <h3 id="help-title">How {{ app_name }} works</h3>
+    <ol style="padding-left: 1.2em; color: var(--ink-soft);">
+      <li style="margin-bottom: 8px;"><strong style="color: var(--ink);">Add your companies.</strong> Type each grain company's name - {{ app_name }} finds their website and their cash bids page, then shows you what it found before saving anything.</li>
+      <li style="margin-bottom: 8px;"><strong style="color: var(--ink);">Run a scan.</strong> One click. {{ app_name }} visits every company's bid pages, politely, and collects the numbers.</li>
+      <li style="margin-bottom: 8px;"><strong style="color: var(--ink);">Open your spreadsheet.</strong> A tidy Excel file lands in the <strong style="color: var(--ink);">Spreadsheets</strong> folder - ready to save, print, or forward.</li>
+    </ol>
+    <p class="small muted">If anything ever looks stuck, close the black RUN window and double-click RUN again. Nothing is ever lost.</p>
+    <div class="row" style="justify-content: flex-end;">
+      <button class="btn btn-primary" data-close-modal>Got it</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="empty">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+  </svg>
+  <div class="empty-title">{{ error_heading }}</div>
+  <p class="empty-body">{{ error_body }}</p>
+  <a class="btn btn-primary" href="{{ url_for('pages.home') }}">Back to Home</a>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+Third-party fonts bundled in this directory
+===========================================
+
+InterVariable.woff2
+  Inter, Copyright (c) 2016 The Inter Project Authors.
+  Licensed under the SIL Open Font License, Version 1.1.
+  Reserved Font Name: "Inter".
+  Upstream: https://github.com/rsms/inter
+
+FrauncesVariable.woff2
+  Fraunces, Copyright (c) 2020 The Fraunces Project Authors.
+  Licensed under the SIL Open Font License, Version 1.1.
+  Reserved Font Name: "Fraunces".
+  Upstream: https://github.com/undercasetype/Fraunces
+
+The full text of the SIL Open Font License, Version 1.1 is included in
+`OFL.txt` alongside this notice (OFL clause 2 requires the license to
+travel with the font files); it is also available at
+https://openfontlicense.org/. Both fonts are redistributed here under
+that license, which is separate from and unaffected by the license of
+this project's own source code. If you fork this repository, keep this
+notice AND `OFL.txt` with the font files, or drop the fonts and load
+them from a font service instead.

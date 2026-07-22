@@ -1,0 +1,89 @@
+/* ============================================================
+   BidBoard design tokens - the single source of visual truth.
+   Personality: "grain elevator meets annual report" - warm,
+   sunlit, disciplined. Light theme.
+   ============================================================ */
+
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/FrauncesVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ---- palette: harvest, corporate-clean ---- */
+  --paper:      #FAF8F4;   /* warm off-white app background */
+  --surface:    #FFFFFF;   /* cards */
+  --surface-2:  #F3EFE7;   /* wells, table headers */
+  --ink:        #26221B;   /* warm near-black text */
+  --ink-soft:   #6B6459;   /* secondary text */
+  --line:       #E5DFD3;   /* hairline borders */
+
+  --green-900:  #1C3A22;
+  --green-800:  #23492B;   /* sidebar, heading accents */
+  --green-600:  #2F6B3A;   /* primary buttons, links */
+  --green-500:  #3D7F49;
+  --green-100:  #E3EFE0;   /* success tint, fresh badges */
+
+  --gold-700:   #96660C;
+  --gold-600:   #B97F10;   /* aging accents */
+  --gold-100:   #FBEEC9;
+  --wheat-400:  #E8C766;   /* charts, decorative sprig */
+
+  --clay-700:   #96351F;
+  --clay-600:   #B4452F;   /* errors, stale */
+  --clay-100:   #F9E4DD;
+
+  --sky-700:    #2A5174;
+  --sky-600:    #33628C;   /* info */
+  --sky-100:    #E2ECF5;
+
+  /* ---- typography ---- */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --fs-12: 0.75rem;
+  --fs-13: 0.8125rem;
+  --fs-14: 0.875rem;
+  --fs-15: 0.9375rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-36: 2.25rem;
+
+  /* ---- spacing (4px base) ---- */
+  --sp-1: 4px;  --sp-2: 8px;   --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px;  --sp-7: 32px; --sp-8: 40px;
+  --sp-9: 56px; --sp-10: 72px;
+
+  /* ---- shape ---- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* ---- elevation (soft, never harsh) ---- */
+  --shadow-1: 0 1px 2px rgb(38 34 27 / 0.06);
+  --shadow-2: 0 4px 16px rgb(38 34 27 / 0.10);
+  --shadow-3: 0 12px 32px rgb(38 34 27 / 0.14);
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --t-fast: 120ms;
+  --t-med: 240ms;
+
+  /* ---- layout ---- */
+  --sidebar-w: 216px;
+  --content-max: 1080px;
+  --focus-ring: 0 0 0 3px rgb(47 107 58 / 0.35);
+}

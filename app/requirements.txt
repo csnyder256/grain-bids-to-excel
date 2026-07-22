@@ -1,0 +1,10 @@
+flask>=3.0
+waitress>=3.0
+requests>=2.32
+beautifulsoup4>=4.12
+lxml>=5.2
+rapidfuzz>=3.9
+openpyxl>=3.1
+apscheduler>=3.10
+jsonschema>=4.22
+playwright>=1.45

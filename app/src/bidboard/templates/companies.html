@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row between" style="margin-bottom: var(--sp-5);">
+  <div class="muted small" id="company-count"></div>
+  <button class="btn btn-primary" id="add-company-btn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Add a company
+  </button>
+</div>
+
+<div class="empty" id="companies-empty" {% if companies %}hidden{% endif %}>
+  <svg width="88" height="72" viewBox="0 0 88 72" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M10 66V30l12-8 12 8v36"/>
+    <path d="M34 66V38h20v28"/>
+    <path d="M54 66V26l10-6 10 6v40"/>
+    <path d="M4 66h80"/>
+    <path d="M16 38h4M16 46h4M62 36h4M62 44h4"/>
+    <path d="M39 46h10M39 54h10"/>
+  </svg>
+  <div class="empty-title">No companies yet</div>
+  <p class="empty-body">
+    Add the grain companies whose bids you want to track. Type the company's name the way
+    you'd say it - "Prairie Ridge Grain" works better than a web address - and {{ app_name }}
+    will go find their cash bids pages for you.
+  </p>
+  <button class="btn btn-primary btn-lg" data-open-add>Add your first company</button>
+</div>
+
+<div class="card-grid" id="company-grid"></div>
+
+{# ---------- Add company modal ---------- #}
+<div class="modal-backdrop" id="add-modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-title">
+    <h3 id="add-title">Add a company</h3>
+    <p class="muted small">
+      Type the company's name the way you'd say it - or paste their website address.
+      We'll show you what we found before anything is saved.
+    </p>
+    <div class="field">
+      <label for="biz-name">Company name or website</label>
+      <div class="row" style="flex-wrap: nowrap;">
+        <input class="input" id="biz-name" type="text" placeholder="e.g. Prairie Ridge Grain" autocomplete="off" style="flex:1;">
+        <button class="btn btn-primary" id="add-search-btn">Find it</button>
+      </div>
+      <div class="hint">The search takes a few seconds - we check each match for a cash bids page.</div>
+    </div>
+    <div id="add-results" aria-live="polite"></div>
+    <div class="row" style="justify-content: flex-end; margin-top: var(--sp-4);">
+      <button class="btn btn-secondary" data-close-modal>Cancel</button>
+    </div>
+  </div>
+</div>
+
+{# ---------- "What are we looking for?" drawer (modal on all sizes) ---------- #}
+<div class="modal-backdrop" id="filters-modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="filters-title" style="max-width: 640px;">
+    <h3 id="filters-title">What are we looking for?</h3>
+    <div id="filters-body"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/companies.js') }}"></script>
+{% endblock %}

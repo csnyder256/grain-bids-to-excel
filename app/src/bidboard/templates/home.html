@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not companies %}
+{# ---------- first-run welcome takeover ---------- #}
+<div class="welcome">
+  <div class="welcome-kicker">Welcome to {{ app_name }}</div>
+  <h2>Every elevator's cash bids,<br>in one tidy spreadsheet.</h2>
+  <p class="welcome-lede">
+    {{ app_name }} visits the websites of the grain companies you care about, collects their
+    posted cash bids, and turns them into a polished Excel spreadsheet - automatically.
+    You choose the companies once; after that it's one click whenever you want fresh numbers.
+  </p>
+
+  <div class="steps" aria-label="How it works">
+    <div class="step current">
+      <div class="step-num">1</div>
+      <div class="step-label">Add your companies</div>
+      <div class="step-sub">Tell {{ app_name }} who to watch</div>
+    </div>
+    <div class="step dim">
+      <div class="step-num">2</div>
+      <div class="step-label">Run a scan</div>
+      <div class="step-sub">One click gathers every bid</div>
+    </div>
+    <div class="step dim">
+      <div class="step-num">3</div>
+      <div class="step-label">Open your spreadsheet</div>
+      <div class="step-sub">Ready to print or forward</div>
+    </div>
+  </div>
+
+  <a class="btn btn-primary btn-lg" href="{{ url_for('pages.companies') }}">Add your first company</a>
+</div>
+
+{% else %}
+{# ---------- dashboard (companies exist) ---------- #}
+<div class="stack">
+  {% if not last_run %}
+  <div class="card row between">
+    <div>
+      <div class="card-title">Ready for your first scan</div>
+      <div class="card-sub">{{ companies|length }} compan{{ 'y' if companies|length == 1 else 'ies' }} set up. The first scan usually takes a few minutes.</div>
+    </div>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('pages.scan') }}">Run a scan</a>
+  </div>
+  {% else %}
+  <div class="card row between">
+    <div>
+      <div class="card-title">Welcome back</div>
+      <div class="card-sub" id="home-summary">Watching {{ companies|length }} compan{{ 'y' if companies|length == 1 else 'ies' }}. Run a scan whenever you want fresh numbers.</div>
+    </div>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('pages.scan') }}">Run a scan</a>
+  </div>
+  <div class="card" id="home-last-run">
+    <div class="card-title">Your latest spreadsheet</div>
+    <div class="card-sub" id="home-last-run-body">Loading…</div>
+    <div class="row" id="home-last-run-actions" style="margin-top: var(--sp-3);"></div>
+  </div>
+  {% endif %}
+
+  <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+    <a class="card" href="{{ url_for('pages.companies') }}" style="text-decoration:none;">
+      <div class="card-title">Companies</div>
+      <div class="card-sub">Add or edit who you're watching</div>
+    </a>
+    <a class="card" href="{{ url_for('pages.results') }}" style="text-decoration:none;">
+      <div class="card-title">Results</div>
+      <div class="card-sub">Open past spreadsheets</div>
+    </a>
+    <a class="card" href="{{ url_for('pages.settings') }}" style="text-decoration:none;">
+      <div class="card-title">Settings</div>
+      <div class="card-sub">Shape your spreadsheets</div>
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if companies and last_run %}
+<script>
+(async function () {
+  const body = document.getElementById("home-last-run-body");
+  const actions = document.getElementById("home-last-run-actions");
+  if (!body) return;
+  try {
+    const builds = await (await fetch("/api/results")).json();
+    if (!builds.length) { body.textContent = "Run a scan to create your first spreadsheet."; return; }
+    const b = builds[0];
+    const f = b.files[0];
+    const path = typeof f === "string" ? f : f.path;
+    const name = String(path).split(/[\\/]/).pop();
+    body.textContent = `${name} - built ${fmtTs(b.created_at)}.`;
+    const open = document.createElement("button");
+    open.className = "btn btn-secondary";
+    open.textContent = "Open workbook";
+    open.addEventListener("click", () => fetch("/api/results/open-file", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }).catch(() => toast("Check the Spreadsheets folder.")));
+    const folder = document.createElement("button");
+    folder.className = "btn btn-ghost";
+    folder.textContent = "Open folder";
+    folder.addEventListener("click", () => fetch("/api/results/open-folder", { method: "POST" }));
+    actions.append(open, folder);
+  } catch (_) {
+    body.textContent = "Your spreadsheets are in the Spreadsheets folder.";
+  }
+})();
+</script>
+{% endif %}
+
+{% endblock %}

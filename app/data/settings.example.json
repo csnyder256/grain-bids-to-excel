@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "output": {
+    "workbook_modes": ["master"],
+    "master": {
+      "sheet_per": "company",
+      "include_all_bids_sheet": true
+    },
+    "include_health_sheet": true,
+    "max_data_sheets_per_workbook": 24,
+    "charts": "none",
+    "chart_history_trend": false,
+    "sort_by": "delivery_start",
+    "group_by": "commodity",
+    "horizon_months": 12,
+    "decimals": {
+      "cash": 4,
+      "basis": 4,
+      "futures": 4
+    },
+    "columns": {
+      "include_change": true,
+      "include_futures": true,
+      "include_delivery_dates": true,
+      "include_flags": true,
+      "highlight_best_bids": true
+    },
+    "hyperlinks": true,
+    "overlap_policy": "show_both",
+    "stale_thresholds": {
+      "aging_days": 2,
+      "stale_days": 5,
+      "identical_scans": 3
+    },
+    "filename_patterns": {
+      "master": "Cash Bids {date} {time}.xlsx",
+      "per_company": "{company} Bids {date}.xlsx",
+      "per_commodity": "{commodity} Bids {date}.xlsx"
+    },
+    "archive": {
+      "enabled": true,
+      "keep_latest": 10
+    },
+    "auto_build_after_scan": true
+  },
+  "filters": {
+    "commodities": [],
+    "locations": []
+  },
+  "company_overrides": {},
+  "schedule": {
+    "enabled": false,
+    "day_of_week": "daily",
+    "hour": 7,
+    "minute": 30
+  },
+  "advanced": {
+    "politeness_min_s": 2.0,
+    "politeness_max_s": 5.0,
+    "page_timeout_s": 30,
+    "respect_robots": true,
+    "resolve_verify": true
+  }
+}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div id="results-root">
+  <div class="empty" id="results-empty" {% if runs %}hidden{% endif %}>
+    <svg width="76" height="72" viewBox="0 0 88 72" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="14" y="8" width="60" height="56" rx="4"/>
+      <path d="M14 22h60"/>
+      <path d="M26 34v18M38 42v10M50 30v22M62 38v14"/>
+    </svg>
+    <div class="empty-title">No spreadsheets yet</div>
+    <p class="empty-body">
+      After your first scan, every Excel file {{ app_name }} builds appears here - 
+      with one-click buttons to open the file or the folder it lives in.
+    </p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('pages.scan') }}">Run your first scan</a>
+  </div>
+  <div id="results-list" class="stack"></div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/results.js') }}"></script>
+{% endblock %}

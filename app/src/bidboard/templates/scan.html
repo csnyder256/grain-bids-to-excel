@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not companies %}
+<div class="empty">
+  <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6M11 8v6"/>
+  </svg>
+  <div class="empty-title">Nothing to scan yet</div>
+  <p class="empty-body">
+    A scan visits each of your companies' bid pages and collects the numbers.
+    Add a company first, and this page comes to life.
+  </p>
+  <a class="btn btn-primary btn-lg" href="{{ url_for('pages.companies') }}">Add a company</a>
+</div>
+
+{% else %}
+<div class="stack" id="scan-root"
+     data-companies="{{ companies|length }}" data-sites="{{ site_count }}">
+
+  {# idle / header state #}
+  <div class="card" id="scan-header">
+    <div class="row between">
+      <div>
+        <div class="card-title" id="scan-headline">Everything's ready</div>
+        <div class="card-sub" id="scan-subline">
+          {{ companies|length }} compan{{ 'y' if companies|length == 1 else 'ies' }},
+          {{ site_count }} location{{ '' if site_count == 1 else 's' }} - a scan usually takes 2–5 minutes.
+        </div>
+      </div>
+      <div class="row" id="scan-controls">
+        <button class="btn btn-primary btn-lg" id="run-scan-btn">Run scan now</button>
+      </div>
+    </div>
+    <div id="scan-overall" hidden style="margin-top: var(--sp-4);">
+      <div class="progress active" style="margin-bottom: var(--sp-2);"><span id="overall-bar" style="width:0%"></span></div>
+      <div class="row between small muted">
+        <span id="overall-text">Starting…</span>
+        <span id="overall-elapsed"></span>
+      </div>
+    </div>
+  </div>
+
+  {# finished summary buttons #}
+  <div class="card" id="scan-finished" hidden>
+    <div class="row between">
+      <div>
+        <div class="card-title" id="finished-headline">Done</div>
+        <div class="card-sub" id="finished-subline"></div>
+      </div>
+      <div class="row">
+        <button class="btn btn-secondary" id="open-workbook-btn" hidden>Open workbook</button>
+        <a class="btn btn-primary" href="{{ url_for('pages.results') }}">See full results</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row between">
+    <h3 style="font-size: var(--fs-16);">Progress by company</h3>
+    <a class="small muted" href="{{ url_for('pages.settings') }}" data-tip="Change how your spreadsheet is built">Output settings ⚙</a>
+  </div>
+  <div id="company-rows" class="stack" style="--sp-4: 8px;"></div>
+
+  <div id="scan-flags" class="stack" style="--sp-4: 8px;"></div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scan.js') }}"></script>
+{% endblock %}
