@@ -1,0 +1,26 @@
+# Keep the app's pip deps and the CI actions patched. CI runs the scraper
+# suite against checked-in HTML fixtures on every Dependabot PR.
+#
+# app/requirements.txt uses open floors (>=), so pip already installs the
+# newest compatible release; increase-if-necessary stops Dependabot from
+# raising those floors on every release for no install-time effect.
+# Routine bumps are grouped: one PR per ecosystem per week.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
+  - package-ecosystem: "pip"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    groups:
+      pip-minor-and-patch:
+        update-types: ["minor", "patch"]
