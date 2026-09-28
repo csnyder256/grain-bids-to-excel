@@ -45,6 +45,27 @@ def _emit(progress: Progress | None, event: ProgressEvent) -> None:
             log.exception("progress callback failed")
 
 
+def _persist_flags(store, flags, *, run_id, site_id, company_id,
+                   progress=None) -> list[Flag]:
+    """The single place a page's flags are written.
+
+    Takes the finished list of every flag this page produced, writes each one
+    to the store exactly once, emits the loud ones to progress, and returns
+    that same list. Persistence and the returned ``PageScanOutcome.flags`` are
+    therefore the same objects in the same order; the run summary can never
+    disagree with what was stored.
+
+    ``flags`` must be a snapshot (a fresh list), never a live list that some
+    caller is still iterating or extending.
+    """
+    for f in flags:
+        store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
+        if f.severity in ("warn", "error"):
+            _emit(progress, ProgressEvent(company_id, site_id, "flag",
+                                          f.message, f.severity))
+    return list(flags)
+
+
 def _needs_escalation(html: str, vendor, extraction) -> bool:
     """Decide whether Tier-1 output warrants a Tier-2 render."""
     if vendor.needs_js and not extraction.rows:
@@ -97,24 +118,36 @@ def scan_site(
 
     # escalate to Tier-2 if needed and we started at Tier-1
     used = fetched
+    # Flags the Tier-2 attempt produced, kept separate from the extraction.
+    # They are folded into the page's single flag list below; they are never
+    # written into ``extraction.flags``, because that list is a live object the
+    # no-rows branch iterates (extending it there duplicates accounting).
     tier2_flags: list[Flag] = []
+    render_failed = False
     if fetched.tier_used == 1 and _needs_escalation(fetched.html or "", vendor, extraction):
         _emit(progress, ProgressEvent(company_id, site_id, "fetch",
                                       f"{label} needs the mini-browser - rendering…"))
         rendered = fetcher.fetch_tier2(site["url"], hints=vendor)
         # Whatever the render produced, its flags describe this page's result
-        # and must reach both the store and the caller: a Tier-2 warning that
-        # is persisted but not returned leaves the run summary claiming the
-        # page came back clean. Collect them once, in one place.
+        # and must reach both the store and the caller.
         tier2_flags = list(rendered.flags)
         if rendered.ok and rendered.html:
+            # A successful render replaces the Tier-1 reading outright.
             used = rendered
             extraction = extract_bids(rendered.html, rendered.final_url, vendor,
                                       location=site.get("label"))
-        elif rendered.flags:
-            for f in rendered.flags:
-                store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
-            extraction.flags.extend(rendered.flags)
+        else:
+            render_failed = True
+
+    # A failed render means Tier-1's reading of an un-rendered shell is
+    # superseded, not corroborating: its "no bid table here" conclusion was
+    # drawn from content the browser was supposed to supply. Reporting both it
+    # and the render failure would charge one page outcome twice, so the stale
+    # Tier-1 verdict is dropped and the render's own flags stand alone.
+    extraction_flags = [
+        f for f in extraction.flags
+        if not (render_failed and f.code == "NO_BID_DATA")
+    ]
 
     # persist vendor + tier memory on success
     if extraction.rows:
@@ -134,12 +167,13 @@ def scan_site(
         # staleness + overlap
         stale_flags = S.check_staleness(store, site, extraction, thresholds, signature)
         overlap_flags = S.check_overlap(store, company_id, site, extraction.rows)
-        reported = extraction.flags + stale_flags + overlap_flags + tier2_flags
-        for f in reported:
-            store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
-            if f.severity in ("warn", "error"):
-                _emit(progress, ProgressEvent(company_id, site_id, "flag",
-                                              f.message, f.severity))
+        # One snapshot of every flag this page produced, persisted and returned
+        # by the same call so the run summary always matches the store.
+        reported = _persist_flags(
+            store, extraction_flags + stale_flags + overlap_flags + tier2_flags,
+            run_id=run_id, site_id=site_id, company_id=company_id,
+            progress=progress,
+        )
 
         # discovery: remember sibling bid pages for later suggestion
         try:
@@ -156,15 +190,19 @@ def scan_site(
             {"rows": len(extraction.rows)}))
         return PageScanOutcome(site_id, outcome, len(extraction.rows), reported)
 
-    # no rows
+    # no rows: a failed render keeps whatever Tier-1 extracted, plus the
+    # Tier-2 flags. Snapshot with ``+`` (a fresh list) so persistence cannot
+    # mutate the list it is iterating.
     outcome = "no_data"
-    for f in extraction.flags:
-        store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
+    reported = _persist_flags(
+        store, extraction_flags + tier2_flags,
+        run_id=run_id, site_id=site_id, company_id=company_id,
+        progress=progress,
+    )
     store.record_page_scan(run_id, site_id, used, extraction, outcome)
-    msg = extraction.flags[0].message if extraction.flags else "No bids found."
+    msg = reported[0].message if reported else "No bids found."
     _emit(progress, ProgressEvent(company_id, site_id, "flag", msg, "warn"))
-    return PageScanOutcome(site_id, outcome, 0,
-                           extraction.flags + tier2_flags)
+    return PageScanOutcome(site_id, outcome, 0, reported)
 
 
 def scan_all(
