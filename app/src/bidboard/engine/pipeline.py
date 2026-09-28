@@ -200,8 +200,8 @@ def scan_site(
         progress=progress,
     )
     store.record_page_scan(run_id, site_id, used, extraction, outcome)
-    msg = reported[0].message if reported else "No bids found."
-    _emit(progress, ProgressEvent(company_id, site_id, "flag", msg, "warn"))
+    msg = f"No bid rows extracted; {len(reported)} validation flag(s) recorded."
+    _emit(progress, ProgressEvent(company_id, site_id, "done", msg, "warn"))
     return PageScanOutcome(site_id, outcome, 0, reported)
 
 

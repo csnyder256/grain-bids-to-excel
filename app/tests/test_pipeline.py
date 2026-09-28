@@ -250,3 +250,16 @@ def test_scan_all_flag_count_matches_the_store_on_failure(store, site):
     assert summary.flags == len(persisted)
     codes = [f["code"] for f in persisted]
     assert len(codes) == len(set(codes)), "no duplicates stored"
+
+
+def test_no_rows_progress_reports_each_flag_once_and_completes(store, site):
+    events = []
+    run = store.begin_run()
+    fetcher = _Fetcher(tier2=None, tier2_flags=[RENDER_TIMEOUT, PLAYWRIGHT_MISSING])
+    outcome = P.scan_site(store, fetcher, site, run, EngineConfig(), THRESHOLDS, progress=events.append)
+    flags = [e for e in events if e.stage == "flag"]
+    assert [e.message for e in flags].count(RENDER_TIMEOUT.message) == 1
+    assert [e.message for e in flags].count(PLAYWRIGHT_MISSING.message) == 1
+    done = [e for e in events if e.stage == "done"]
+    assert len(done) == 1
+    assert str(len(outcome.flags)) in done[0].message
