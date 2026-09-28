@@ -151,26 +151,29 @@ app/src/bidboard/
   services/    scan_manager.py, scheduler.py
   templates/   8 Jinja templates
   static/      2 CSS files, 5 JS files, Inter + Fraunces woff2 with OFL.txt
-app/tests/    9 test modules + conftest.py, 1,155 lines, 97 tests
+app/tests/    10 test modules + conftest.py, 1,407 lines, 107 tests
 ```
 
-Module counts exclude `__init__.py`. Measured in this tree: 6,196 lines of application source across 38 Python files, 1,155 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
+Module counts exclude `__init__.py`. Measured in this tree: 6,244 lines of application source across 38 Python files, 1,407 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
 
 ## Testing
 
 ```
 py -3 -m pytest app/tests
-97 passed
+107 passed
 ```
 
-Verified on CPython 3.14 with the pinned dependency floors from `app/requirements.txt`. **There is no CI.** No `.github` workflow exists. The tests run locally, and live scans against real sites were verified by hand, separately.
+Verified on CPython 3.14 with the pinned dependency floors from `app/requirements.txt`, and re-verified on CPython 3.12 in CI.
 
-The distribution matters more than the total. `test_normalize.py` alone holds 40 of the 97 tests (price, eighths, basis, change, futures month, delivery window parsing), then `test_settings.py` 11, `test_store.py` 9, `test_staleness.py` 8, `test_extractor.py` 7, `test_report.py` 7, `test_discover.py` 5, `test_resolve.py` 5, `test_scheduler.py` 5. Coverage follows risk: parsing is where this app is wrong if it is wrong.
+CI runs on GitHub Actions for every push to `main` and every pull request: `.github/workflows/ci.yml` checks out, installs the pinned requirements into a cached pip environment on Python 3.12, and runs the suite. Live scans against real sites are still verified by hand, separately.
+
+The distribution matters more than the total. `test_normalize.py` alone holds 40 of the tests (price, eighths, basis, change, futures month, delivery window parsing), then `test_settings.py` 11, `test_pipeline.py` 10, `test_store.py` 9, `test_staleness.py` 8, `test_extractor.py` 7, `test_report.py` 7, `test_discover.py` 5, `test_resolve.py` 5, `test_scheduler.py` 5. Coverage follows risk: parsing is where this app is wrong if it is wrong.
 
 Two decisions worth calling out:
 
 - **A golden fixture.** `app/tests/fixtures/sample_bushel_bids.html` is a hand-written synthetic page that imitates the *shape* of a server-rendered vendor widget: repeated `ul.sevenColumnsBigFirst` grids inside `div.cbCommodity`, precisely the layout that exercises the virtual-grid path. The test asserts `container_score >= 8`, no flags, exactly 15 rows, all `CORN`, and then pins the anchor row `July 1 - 15` field by field: cash `4.00`, basis `-0.15`, futures price `4.15` (parsed from `415-0s`), change `+0.0025` (parsed from `+0-2`), futures month `2026-09` (from "Sep 26"), delivery end `date(2026, 7, 15)`. The original fixture was a saved copy of a real company's page; it was replaced with invented markup and invented prices for the public repo, and the test still asserts the same behavior.
 - **Product invariants pinned as tests.** Report tests round-trip generated workbooks through `openpyxl.load_workbook`, then open the `.xlsx` as a zip to assert no `xl/externalLinks/` members exist. `test_never_overwrites` and `test_company_override_applies` pin the other two rules the recipient would notice immediately if they broke.
+- **Failure accounting pinned as tests.** `test_pipeline.py` drives the whole scan orchestration with an injected fetcher, so the Tier-1 and Tier-2 branches are exercised with no network and no browser. It pins one rule: every flag a page produces is collected once, stored once, and returned in the same order, so `ScanRunSummary.flags` cannot disagree with `store.open_flags`.
 
 Hard rule: no test hits the network.
 
@@ -202,7 +205,6 @@ There are no API keys, tokens, passwords or connection strings anywhere in this 
 - Two bids from the same site and commodity whose delivery window *and* futures month both fail to parse can, in principle, collide on the identity hash. `staleness.row_identity_hash` mitigates it by falling back to the raw delivery label, and there is a test for that case, but the general problem is a known residual.
 - Search-engine name resolution is inherently fragile. Three fallback transports exist because search engines actively block scripted clients, and it will need maintenance whenever they change tactics. That is why the user always confirms a match instead of the app auto-accepting one.
 - Single-user by design. No auth, no concurrent writers, no deployment story beyond `127.0.0.1`.
-- No CI. Every "97 passing" claim here is a local run.
 
 ## Status
 
