@@ -267,7 +267,7 @@
       <a class="btn ghost" href="https://github.com/csnyder256/grain-bids-to-excel#quickstart">Quickstart</a>
     </div>
     <div class="facts">
-      <span>Python</span><span>Flask + Waitress</span><span>Playwright</span><span>SQLite WAL</span><span>openpyxl</span><span>97 tests passing</span><span>MIT</span>
+      <span>Python</span><span>Flask + Waitress</span><span>Playwright</span><span>SQLite WAL</span><span>openpyxl</span><span>107 tests passing</span><span>MIT</span>
     </div>
   </div>
 </header>
@@ -360,7 +360,7 @@ Spreadsheets/*.xlsx          master / per-company / per-commodity workbooks</pre
 <pre>py -3 -m pip install -r app/requirements.txt pytest
 py -3 -m playwright install chromium    <span class="c"># only for Tier-2 JS pages</span>
 
-py -3 -m pytest app/tests               <span class="c"># 97 passed</span>
+py -3 -m pytest app/tests               <span class="c"># 107 passed</span>
 py -3 app/src/launcher.py               <span class="c"># http://127.0.0.1:8383</span></pre>
     </div>
     <div class="links">
@@ -382,7 +382,7 @@ py -3 app/src/launcher.py               <span class="c"># http://127.0.0.1:8383<
       <li>Search-engine name resolution is fragile by nature. Three fallback transports exist because search engines block scripted clients, and the user always confirms a match rather than the app auto-accepting one.</li>
       <li>robots.txt is honored by default, with a 24-hour cache and a 2 to 5 second jittered politeness delay per domain. The check is deliberately fail-open. The toggle exists under Advanced settings and turning it off is the operator's call.</li>
       <li>Single-user by design. No auth, no concurrent writers, no deployment story beyond <code>127.0.0.1</code>.</li>
-      <li>Tests run locally. There is no CI configured, and live scans were verified by hand.</li>
+      <li>Tests run in CI on every push and pull request, and live scans were verified by hand.</li>
       <li>Working and shipped. It was used for its actual purpose. It is not under active development.</li>
     </ul>
   </div>
