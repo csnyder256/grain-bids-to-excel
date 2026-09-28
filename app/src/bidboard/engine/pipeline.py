@@ -97,10 +97,16 @@ def scan_site(
 
     # escalate to Tier-2 if needed and we started at Tier-1
     used = fetched
+    tier2_flags: list[Flag] = []
     if fetched.tier_used == 1 and _needs_escalation(fetched.html or "", vendor, extraction):
         _emit(progress, ProgressEvent(company_id, site_id, "fetch",
                                       f"{label} needs the mini-browser - rendering…"))
         rendered = fetcher.fetch_tier2(site["url"], hints=vendor)
+        # Whatever the render produced, its flags describe this page's result
+        # and must reach both the store and the caller: a Tier-2 warning that
+        # is persisted but not returned leaves the run summary claiming the
+        # page came back clean. Collect them once, in one place.
+        tier2_flags = list(rendered.flags)
         if rendered.ok and rendered.html:
             used = rendered
             extraction = extract_bids(rendered.html, rendered.final_url, vendor,
@@ -128,7 +134,8 @@ def scan_site(
         # staleness + overlap
         stale_flags = S.check_staleness(store, site, extraction, thresholds, signature)
         overlap_flags = S.check_overlap(store, company_id, site, extraction.rows)
-        for f in extraction.flags + stale_flags + overlap_flags:
+        reported = extraction.flags + stale_flags + overlap_flags + tier2_flags
+        for f in reported:
             store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
             if f.severity in ("warn", "error"):
                 _emit(progress, ProgressEvent(company_id, site_id, "flag",
@@ -147,8 +154,7 @@ def scan_site(
             company_id, site_id, "done",
             f"{label}: {len(extraction.rows)} bids", "info",
             {"rows": len(extraction.rows)}))
-        return PageScanOutcome(site_id, outcome, len(extraction.rows),
-                               extraction.flags + stale_flags + overlap_flags)
+        return PageScanOutcome(site_id, outcome, len(extraction.rows), reported)
 
     # no rows
     outcome = "no_data"
@@ -157,7 +163,8 @@ def scan_site(
     store.record_page_scan(run_id, site_id, used, extraction, outcome)
     msg = extraction.flags[0].message if extraction.flags else "No bids found."
     _emit(progress, ProgressEvent(company_id, site_id, "flag", msg, "warn"))
-    return PageScanOutcome(site_id, outcome, 0, extraction.flags)
+    return PageScanOutcome(site_id, outcome, 0,
+                           extraction.flags + tier2_flags)
 
 
 def scan_all(
@@ -169,9 +176,12 @@ def scan_all(
     trigger: str = "manual",
     progress: Progress | None = None,
     cancel=None,
+    fetcher=None,
 ) -> ScanRunSummary:
     run_id = store.begin_run(trigger)
-    fetcher = TieredFetcher(config, store)
+    # Injectable so the orchestration can be exercised without network or a
+    # browser; production always builds the tiered fetcher.
+    fetcher = fetcher or TieredFetcher(config, store)
 
     companies = company_ids or [c["id"] for c in store.list_companies()]
     sites: list[dict] = []
