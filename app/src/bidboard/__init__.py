@@ -10,7 +10,7 @@ from flask import Flask, render_template
 
 from . import paths
 
-__version__ = "1.0.0"
+__version__ = "0.1.2"
 
 APP_NAME = "BidBoard"
 TAGLINE = "Cash bids from every elevator, in one spreadsheet."

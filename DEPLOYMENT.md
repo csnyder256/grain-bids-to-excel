@@ -2,7 +2,7 @@
 
 ## Docker Desktop or Linux server
 
-Download and extract the `v0.1.1` deployment ZIP or tarball from [Releases](https://github.com/csnyder256/grain-bids-to-excel/releases). Verify its SHA-256 using `checksums.txt` (`sha256sum -c checksums.txt` on Linux). From the extracted folder:
+Download and extract the `v0.1.2` deployment ZIP or tarball from [Releases](https://github.com/csnyder256/grain-bids-to-excel/releases). Verify its SHA-256 using `checksums.txt` (`sha256sum -c checksums.txt` on Linux). From the extracted folder:
 
 ```sh
 docker compose -p bidboard up --build -d

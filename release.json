@@ -1,5 +1,7 @@
 {
   "name": "grain-bids-to-excel",
   "package_json": [],
-  "version_patterns": {}
+  "version_patterns": {
+    "app/src/bidboard/__init__.py": "__version__ = \"([^\"\\n]+)\""
+  }
 }
