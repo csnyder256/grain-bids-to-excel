@@ -215,3 +215,10 @@ Working and shipped. It was used for its actual purpose. It is not under active 
 MIT. See [LICENSE](LICENSE). Bundled webfonts (Inter, Fraunces) are SIL OFL 1.1 and ship with `OFL.txt` and the reserved-name notice alongside them in `app/src/bidboard/static/fonts/`.
 
 Built by Cade (https://github.com/csnyder256)
+
+
+## Release downloads and deployment
+
+[Latest release](https://github.com/csnyder256/grain-bids-to-excel/releases/latest) · [Install, deploy and upgrade](DEPLOYMENT.md)
+
+Release assets include checksums and version-specific notes.

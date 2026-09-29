@@ -1,0 +1,9 @@
+**
+!Dockerfile
+!app/
+!app/requirements.txt
+!app/src/
+!app/src/**
+!deploy/
+!deploy/serve.py
+**/__pycache__/
