@@ -1,0 +1,14 @@
+services:
+  bidboard:
+    build: .
+    ports: ["127.0.0.1:${BIDBOARD_PORT:-8383}:8383"]
+    volumes:
+      - bidboard-data:/opt/bidboard/app/data
+      - bidboard-sheets:/opt/bidboard/Spreadsheets
+    shm_size: 1gb
+    init: true
+    restart: on-failure
+    security_opt: ["no-new-privileges:true"]
+volumes:
+  bidboard-data:
+  bidboard-sheets:
