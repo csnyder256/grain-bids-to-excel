@@ -159,8 +159,13 @@ def parse_basis(raw: str) -> tuple[float | None, list[str]]:
         value = float(m.group())
     except ValueError:
         return None, notes
-    # bare signed integer with no decimal point = cents (e.g. -13 -> -0.13)
-    if "." not in m.group() and abs(value) >= 3:
+    # A basis written without a decimal point is quoted in cents, whatever its
+    # magnitude (-13 -> -0.13, and also -2 -> -0.02). Gating this on
+    # ``abs(value) >= 3`` silently read the small bases (1-2 cents, which are
+    # common for nearby bids) as 1-2 *dollars*, putting a value in the
+    # workbook that no elevator quoted and breaking the cash - futures
+    # identity the extractor relies on.
+    if "." not in m.group():
         notes.append("unit_assumed_cents")
         value = value / 100.0
     if abs(value) > 5.0:
