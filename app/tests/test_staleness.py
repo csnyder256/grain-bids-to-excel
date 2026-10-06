@@ -73,6 +73,93 @@ def test_stale_delivery_all_past(store):
     assert any(f.code == "STALE_DELIVERY" for f in flags)
 
 
+def _fetch_old(days_ago: int = 10):
+    """A FetchResult dated well in the past so STALE_REPEAT's >=48h span gate
+    is satisfied and the count/threshold logic is tested on its own."""
+    return FetchResult(
+        True, "u", "u", 1, 200, "<html></html>",
+        datetime.now(timezone.utc) - timedelta(days=days_ago), 10,
+    )
+
+
+def _scan_identical(store, sid, cid, cash, fetch):
+    """Record one page scan the way scan_site does - the scan is written
+    *before* staleness is checked - and return its content signature."""
+    rows = [_row(cash=cash)]
+    S.stamp_hashes(sid, rows)
+    sig = S.content_signature(rows)
+    run = store.begin_run()
+    ps = store.record_page_scan(
+        run, sid, fetch,
+        ExtractionResult(rows=rows, as_of_date=date(2026, 7, 1)),
+        "ok", content_signature=sig,
+    )
+    store.save_bids(ps, sid, cid, rows)
+    store.finish_run(run, "complete")
+    return sig
+
+
+def _repeat_flag(store, site, sig):
+    flags = S.check_staleness(
+        store, site,
+        ExtractionResult(rows=[_row()], as_of_date=date(2026, 7, 1)),
+        {"aging_days": 2, "stale_days": 5, "identical_scans": 3},
+        sig, today=date(2026, 7, 10),
+    )
+    return next((f for f in flags if f.code == "STALE_REPEAT"), None)
+
+
+def test_stale_repeat_fires_at_the_configured_scan_count(store):
+    """``identical_scans`` = 3 means three identical scans, this one included.
+
+    The current scan is already in ``recent_signatures`` when this runs, so the
+    old ``>= identical_n - 1`` fired after only two identical scans - one scan
+    early against the configured threshold."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+    site = store.get_site(sid)
+
+    seen = []
+    for _ in range(3):
+        sig = _scan_identical(store, sid, cid, 4.10, _fetch_old())
+        seen.append(_repeat_flag(store, site, sig))
+
+    assert seen[0] is None, "one identical scan is not a stuck page"
+    assert seen[1] is None, "two identical scans must not trip a 3-scan rule"
+    assert seen[2] is not None, "the third identical scan is the trigger"
+
+
+def test_stale_repeat_message_counts_scans_that_actually_happened(store):
+    """The warning must not name a scan that never occurred.
+
+    With two scans on record the old code printed 'last 3 scans'; with three it
+    printed 'last 4'."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+    site = store.get_site(sid)
+
+    for i in range(3):
+        sig = _scan_identical(store, sid, cid, 4.10, _fetch_old())
+        flag = _repeat_flag(store, site, sig)
+        if flag is not None:
+            assert f"last {i + 1} scans" in flag.message
+            assert f"last {i + 2} scans" not in flag.message
+            break
+    else:  # pragma: no cover - guarded by the test above
+        pytest.fail("STALE_REPEAT never fired")
+
+
+def test_stale_repeat_still_needs_the_48h_span(store):
+    """Three identical scans inside 48 hours are a weekend, not a frozen page."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+    site = store.get_site(sid)
+
+    for _ in range(3):
+        sig = _scan_identical(store, sid, cid, 4.10, _fetch())  # fresh timestamp
+        assert _repeat_flag(store, site, sig) is None
+
+
 def test_supersede_not_duplicate(store):
     """Two scans of the same bid → query_bids(latest_only) returns one row."""
     cid = store.add_company("Co")

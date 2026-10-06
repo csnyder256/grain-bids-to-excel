@@ -5,7 +5,7 @@
 [![ci](https://github.com/csnyder256/grain-bids-to-excel/actions/workflows/ci.yml/badge.svg)](https://github.com/csnyder256/grain-bids-to-excel/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/python-CPython%203.12%20%2F%203.14-3776AB?style=flat-square&logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-97%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-118%20passing-brightgreen?style=flat-square)
 ![Flask](https://img.shields.io/badge/flask-3.x-000000?style=flat-square&logo=flask&logoColor=white)
 ![Playwright](https://img.shields.io/badge/playwright-chromium-2EAD33?style=flat-square&logo=playwright&logoColor=white)
 ![SQLite](https://img.shields.io/badge/storage-SQLite%20WAL-003B57?style=flat-square&logo=sqlite&logoColor=white)
@@ -151,23 +151,23 @@ app/src/bidboard/
   services/    scan_manager.py, scheduler.py
   templates/   8 Jinja templates
   static/      2 CSS files, 5 JS files, Inter + Fraunces woff2 with OFL.txt
-app/tests/    10 test modules + conftest.py, 1,407 lines, 107 tests
+app/tests/    10 test modules + conftest.py, 1,527 lines, 118 tests
 ```
 
-Module counts exclude `__init__.py`. Measured in this tree: 6,244 lines of application source across 38 Python files, 1,407 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
+Module counts exclude `__init__.py`. Measured in this tree: 6,254 lines of application source across 38 Python files, 1,527 lines of tests, 2,151 lines of frontend. No build step, no `package.json`, no CDN.
 
 ## Testing
 
 ```
 py -3 -m pytest app/tests
-107 passed
+118 passed
 ```
 
 Verified on CPython 3.14 with the pinned dependency floors from `app/requirements.txt`, and re-verified on CPython 3.12 in CI.
 
 CI runs on GitHub Actions for every push to `main` and every pull request: `.github/workflows/ci.yml` checks out, installs the pinned requirements into a cached pip environment on Python 3.12, and runs the suite. Live scans against real sites are still verified by hand, separately.
 
-The distribution matters more than the total. `test_normalize.py` alone holds 40 of the tests (price, eighths, basis, change, futures month, delivery window parsing), then `test_settings.py` 11, `test_pipeline.py` 10, `test_store.py` 9, `test_staleness.py` 8, `test_extractor.py` 7, `test_report.py` 7, `test_discover.py` 5, `test_resolve.py` 5, `test_scheduler.py` 5. Coverage follows risk: parsing is where this app is wrong if it is wrong.
+The distribution matters more than the total. `test_normalize.py` alone holds 47 of the tests (price, eighths, basis, change, futures month, delivery window parsing), then `test_settings.py` 11, `test_pipeline.py` 11, `test_staleness.py` 11, `test_store.py` 9, `test_extractor.py` 7, `test_report.py` 7, `test_discover.py` 5, `test_resolve.py` 5, `test_scheduler.py` 5. Coverage follows risk: parsing is where this app is wrong if it is wrong.
 
 Two decisions worth calling out:
 

@@ -99,10 +99,15 @@ def check_staleness(
                  "days": age},
             ))
 
-    # STALE_REPEAT - identical signature across the last N scans over >=48h
+    # STALE_REPEAT - identical signature across the last N scans over >=48h.
+    # ``recent_signatures`` already includes the page scan recorded moments
+    # ago for this very run, so ``matching`` counts this scan too: the page is
+    # stuck once identical_n scans in a row (this one included) carry the same
+    # signature. The count in the message is that same run length - reporting
+    # ``len(matching) + 1`` claimed a scan that never happened.
     prior = store.recent_signatures(site["id"], limit=identical_n)
     matching = [p for p in prior if p["content_signature"] == signature]
-    if len(matching) >= identical_n - 1 and matching:
+    if len(matching) >= identical_n:
         oldest = _parse_ts(matching[-1]["fetched_at"])
         span_ok = True
         if oldest:
@@ -115,7 +120,7 @@ def check_staleness(
             flags.append(Flag(
                 "STALE_REPEAT", "warn",
                 f"{label} has shown exactly the same numbers for the last "
-                f"{len(matching) + 1} scans.",
+                f"{len(matching)} scans.",
                 hint or "Markets usually move daily - this page may be frozen.",
                 {"site_id": site["id"]},
             ))

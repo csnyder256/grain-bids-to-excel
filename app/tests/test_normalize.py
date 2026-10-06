@@ -35,6 +35,32 @@ def test_parse_basis(raw, expected):
     assert value == pytest.approx(expected)
 
 
+@pytest.mark.parametrize("raw,expected", [
+    ("-2", -0.02),           # 2 cents under, not $2 under
+    ("+2", 0.02),
+    ("-1", -0.01),
+    ("1", 0.01),
+    ("-3", -0.03),
+    ("-25", -0.25),
+])
+def test_parse_basis_small_bare_ints_are_cents(raw, expected):
+    """A basis without a decimal point is cents whatever its magnitude.
+
+    Gating the cents conversion on ``abs(value) >= 3`` read 1-2 cent bases as
+    1-2 dollars, so a nearby bid quoted at -2c landed in the workbook as
+    -$2.00."""
+    value, notes = N.parse_basis(raw)
+    assert value == pytest.approx(expected)
+    assert "unit_assumed_cents" in notes
+
+
+def test_parse_basis_decimal_point_stays_dollars():
+    """A written decimal point still means dollars (unchanged behavior)."""
+    value, notes = N.parse_basis("-1.50")
+    assert value == pytest.approx(-1.50)
+    assert "unit_assumed_cents" not in notes
+
+
 def test_parse_basis_out_of_range():
     value, notes = N.parse_basis("-9.99")
     assert value is None
