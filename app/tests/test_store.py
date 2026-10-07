@@ -85,6 +85,42 @@ def test_company_site_crud(store):
     assert store.list_sites(company_id=cid, enabled_only=True) == []
 
 
+def test_add_site_returns_the_real_id_when_url_already_exists(store):
+    """Re-adding an existing location returns that location's id.
+
+    Regression: the upsert branch returned ``cursor.lastrowid``. A duplicate
+    URL resolves to an UPDATE, and SQLite does not move
+    ``last_insert_rowid()`` for an UPDATE, so the call could hand back the id
+    of an unrelated site inserted in between - and the add-location /
+    accept-suggestion APIs pass that id straight back to the UI.
+    """
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+
+    other_cid = store.add_company("Other")
+    other_sid = store.add_site(other_cid, "https://b.example/bids", "Main")
+    assert other_sid != sid  # last_insert_rowid() now points elsewhere
+
+    again = store.add_site(cid, "https://a.example/bids", "Westfield")
+    assert again == sid
+    assert store.get_site(again)["url"] == "https://a.example/bids"
+    assert len(store.list_sites(company_id=cid, enabled_only=False)) == 1
+
+
+def test_add_site_reenables_the_existing_location_in_place(store):
+    """A previously disabled location comes back under the same id, not as a
+    second row."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+    store.set_site_enabled(sid, False)
+    assert store.list_sites(company_id=cid, enabled_only=True) == []
+
+    again = store.add_site(cid, "https://a.example/bids", "Westfield")
+    assert again == sid
+    assert store.get_site(sid)["enabled"] == 1
+    assert len(store.list_sites(company_id=cid, enabled_only=False)) == 1
+
+
 def test_repoint_resets_site_memory(store):
     cid = store.add_company("Co")
     sid = store.add_site(cid, "https://a.example/bids")

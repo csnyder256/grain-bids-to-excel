@@ -258,16 +258,25 @@ class Store:
     def add_site(
         self, company_id: int, url: str, label: str | None = None
     ) -> int:
+        """Add a location, or re-enable the one already at this URL.
+
+        Returns the site's real id on both branches. ``cursor.lastrowid`` is
+        not safe here: a duplicate URL resolves to an UPDATE, and SQLite
+        leaves ``last_insert_rowid()`` pointing at whatever was inserted
+        earlier on this connection - so re-adding an existing location could
+        hand back an unrelated site's id, making the UI act on the wrong
+        location (or 404). The unique URL is the identity, so read the id back
+        by URL after the upsert.
+        """
+        url = url.strip()
         with self._lock, self._conn:
-            cur = self._conn.execute(
+            self._conn.execute(
                 "INSERT INTO sites(company_id, url, label) VALUES(?,?,?) "
                 "ON CONFLICT(url) DO UPDATE SET enabled=1, company_id=excluded.company_id",
-                (company_id, url.strip(), label),
+                (company_id, url, label),
             )
-            if cur.lastrowid:
-                return cur.lastrowid
             row = self._conn.execute(
-                "SELECT id FROM sites WHERE url=?", (url.strip(),)
+                "SELECT id FROM sites WHERE url=?", (url,)
             ).fetchone()
             return row["id"]
 
