@@ -30,8 +30,20 @@ ACCEPT_THRESHOLD = 3.0
 
 
 def _registered_domain(netloc: str) -> str:
-    parts = netloc.lower().lstrip("www.").split(":")[0].split(".")
-    return ".".join(parts[-2:]) if len(parts) >= 2 else netloc.lower()
+    """Approximate registrable domain: drop the port, then a leading ``www.``.
+
+    Only the ``www.`` *prefix* is removed. ``str.lstrip("www.")`` removes every
+    leading ``w`` and ``.`` character instead, so ``westfieldgrain.com`` was
+    read as ``estfieldgrain.com`` and ``www.wheat.com`` as ``heat.com``. Every
+    same-site decision below compares these strings, so on any host whose first
+    label starts with ``w`` a link to a sibling subdomain (``bids.<host>``)
+    looked off-site and was silently dropped, while an unrelated host that
+    stripped to the same string looked on-site.
+    """
+    host = netloc.lower().split(":")[0]
+    host = host[4:] if host.startswith("www.") else host
+    parts = host.split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else host
 
 
 def _numeric_sibling(path: str, known_paths: set[str]) -> bool:

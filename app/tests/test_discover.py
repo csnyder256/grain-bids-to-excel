@@ -1,5 +1,9 @@
 """Link discovery: scoring, sibling detection, script-JSON harvesting."""
-from bidboard.engine.discover import discover_bid_links, score_link
+from bidboard.engine.discover import (
+    _registered_domain,
+    discover_bid_links,
+    score_link,
+)
 
 BASE = "https://www.example-grain.com/cashbidssingle-2163"
 
@@ -65,3 +69,63 @@ def test_score_link_unit():
     assert score >= 7
     score2, _ = score_link("https://x.com/careers", "Careers", set())
     assert score2 < 0
+
+
+# ---- registered-domain normalization -------------------------------------
+#
+# Same-site filtering compares ``_registered_domain`` of the page against
+# ``_registered_domain`` of every candidate. The old implementation used
+# ``str.lstrip("www.")``, which strips *characters* rather than the prefix, so
+# any host whose first label begins with 'w' was read wrong (westfieldgrain.com
+# -> estfieldgrain.com, wheat.com -> heat.com). The tests below pin the correct
+# behaviour on both sides of the comparison.
+
+
+def test_registered_domain_only_strips_a_real_www_prefix():
+    assert _registered_domain("www.westfieldgrain.com") == "westfieldgrain.com"
+    assert _registered_domain("westfieldgrain.com") == "westfieldgrain.com"
+    assert _registered_domain("wheat.com") == "wheat.com"
+    assert _registered_domain("w.wheat.com") == "wheat.com"
+    assert _registered_domain("bids.westfieldgrain.com") == "westfieldgrain.com"
+    # a port is dropped, and the two forms still agree
+    assert _registered_domain("www.example.com:8080") == "example.com"
+    assert _registered_domain("example.com:8080") == "example.com"
+
+
+W_SUBDOMAIN_HTML = """
+<html><body><nav>
+  <a href="https://bids.westfieldgrain.com/cashbidssingle-2164">Northfield cash bids</a>
+</nav></body></html>
+"""
+
+
+def test_same_site_link_on_a_sibling_subdomain_is_kept():
+    """A bid page on ``bids.<host>`` is on the same site and must be found.
+
+    Regression: with the lstrip bug, ``www.westfieldgrain.com`` and
+    ``bids.westfieldgrain.com`` reduced to different strings, so this sibling
+    page was discarded as off-site and never suggested.
+    """
+    links = discover_bid_links(
+        W_SUBDOMAIN_HTML, "https://www.westfieldgrain.com/cashbidssingle-2163"
+    )
+    assert [l.url for l in links] == [
+        "https://bids.westfieldgrain.com/cashbidssingle-2164"
+    ]
+
+
+LOOKALIKE_HTML = """
+<html><body><nav>
+  <a href="https://estfieldgrain.com/cashbids">Other elevator cash bids</a>
+</nav></body></html>
+"""
+
+
+def test_offsite_host_that_merely_shares_the_stripped_string_is_rejected():
+    """The bug also *accepted* an unrelated host whose name reduced to the same
+    stripped string as the page's own host. Different registrable domain means
+    a different site, so the link must be dropped."""
+    links = discover_bid_links(
+        LOOKALIKE_HTML, "https://westfieldgrain.com/cashbidssingle-2163"
+    )
+    assert links == []

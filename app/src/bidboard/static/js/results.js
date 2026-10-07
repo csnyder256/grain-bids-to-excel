@@ -84,12 +84,16 @@ async function load() {
           <div class="card-sub">${b.files.length} file${b.files.length === 1 ? "" : "s"}${b.run_status ? " · " + esc(b.run_status) : ""}</div>
         </div>
         <div class="row">
-          <button class="btn btn-secondary" onclick="(${openFolder.toString()})()">Open folder</button>
+          <button class="btn btn-secondary open-folder">Open folder</button>
           ${isLatest ? `<button class="btn btn-primary rebuild-btn">Rebuild with current settings</button>` : ""}
         </div>
       </div>
       <div class="stack" style="--sp-4:6px;">${fileRows}</div>`;
     listEl.appendChild(card);
+    // Attach handlers with addEventListener, never by inlining a function's
+    // source into an attribute: the source carries its own double quotes,
+    // which terminated the onclick attribute and left the button inert.
+    card.querySelector(".open-folder").addEventListener("click", openFolder);
     card.querySelectorAll(".open-file").forEach((btn) =>
       btn.addEventListener("click", () => openFile(btn.dataset.path)));
     card.querySelectorAll(".reveal-file").forEach((btn) =>
