@@ -164,6 +164,18 @@ def _iso(value) -> str | None:
     return value.isoformat()
 
 
+class SiteUrlTaken(ValueError):
+    """A page URL can be watched by exactly one location (``sites.url`` is
+    UNIQUE). Raised by :meth:`Store.repoint_site` when the target URL already
+    belongs to a different location, so the caller can answer with a
+    plain-English conflict instead of letting SQLite's IntegrityError escape
+    as an unhandled 500."""
+
+    def __init__(self, existing_site_id: int):
+        self.existing_site_id = existing_site_id
+        super().__init__(f"url already watched by site {existing_site_id}")
+
+
 class Store:
     """All reads and writes go through here. One instance per process;
     a lock serializes writes (waitress threads + the scan worker)."""
@@ -273,13 +285,26 @@ class Store:
 
     def repoint_site(self, site_id: int, new_url: str) -> None:
         """Re-point a location page at a fresher URL; extraction memory
-        resets because the layout may differ."""
+        resets because the layout may differ.
+
+        ``sites.url`` is UNIQUE, so a location cannot be pointed at a page
+        another location already watches. That case raises
+        :class:`SiteUrlTaken` (naming the location that owns the URL) rather
+        than letting the database constraint escape as an unhandled 500 - the
+        UI turns it into a sentence the operator can act on.
+        """
+        new_url = new_url.strip()
         with self._lock, self._conn:
+            clash = self._conn.execute(
+                "SELECT id FROM sites WHERE url=? AND id<>?", (new_url, site_id)
+            ).fetchone()
+            if clash is not None:
+                raise SiteUrlTaken(clash["id"])
             self._conn.execute(
                 "UPDATE sites SET url=?, preferred_tier=1, vendor='unknown', "
                 "column_roles_json=NULL, robots_state='unknown', "
                 "robots_checked_at=NULL WHERE id=?",
-                (new_url.strip(), site_id),
+                (new_url, site_id),
             )
 
     def set_site_enabled(self, site_id: int, enabled: bool) -> None:

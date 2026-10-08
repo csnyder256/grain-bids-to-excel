@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from bidboard.engine.store import Store
+from bidboard.engine.store import SiteUrlTaken, Store
 from bidboard.engine.types import BidRow, ExtractionResult, FetchResult, Flag, ScoredLink
 
 
@@ -205,3 +205,47 @@ def test_robots_cache_roundtrip(store):
     store.set_robots_cache("a.example", "User-agent: *\nAllow: /")
     cached = store.get_robots_cache("a.example")
     assert "Allow" in cached["body"]
+
+
+def test_repoint_onto_a_page_another_location_watches_is_refused(store):
+    """``sites.url`` is UNIQUE, so a location cannot be pointed at a page
+    another location already watches. The store must name the owner in a
+    ``SiteUrlTaken`` rather than leak SQLite's IntegrityError - the re-point
+    endpoint used to surface that as an unhandled 500.
+    """
+    cid = store.add_company("Co")
+    first = store.add_site(cid, "https://a.example/bids", "Westfield")
+    second = store.add_site(cid, "https://b.example/bids", "Northfield")
+
+    with pytest.raises(SiteUrlTaken) as err:
+        store.repoint_site(second, "https://a.example/bids")
+
+    assert err.value.existing_site_id == first
+    # neither location moved
+    assert store.get_site(second)["url"] == "https://b.example/bids"
+    assert store.get_site(first)["url"] == "https://a.example/bids"
+
+
+def test_repoint_onto_a_watched_page_does_not_reset_site_memory(store):
+    """A refused re-point must not touch the location it was aimed at."""
+    cid = store.add_company("Co")
+    store.add_site(cid, "https://a.example/bids", "Westfield")
+    second = store.add_site(cid, "https://b.example/bids", "Northfield")
+    store.update_site_memory(second, tier=2, vendor="barchart")
+
+    with pytest.raises(SiteUrlTaken):
+        store.repoint_site(second, "https://a.example/bids")
+
+    site = store.get_site(second)
+    assert site["preferred_tier"] == 2
+    assert site["vendor"] == "barchart"
+
+
+def test_repoint_to_its_own_url_is_a_no_op(store):
+    """Re-pointing a location at the URL it already has is not a clash."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids", "Westfield")
+
+    store.repoint_site(sid, "https://a.example/bids")
+
+    assert store.get_site(sid)["url"] == "https://a.example/bids"

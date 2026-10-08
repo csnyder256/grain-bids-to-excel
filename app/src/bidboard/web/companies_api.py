@@ -12,6 +12,7 @@ from ..engine.discover import discover_bid_links
 from ..engine.fetcher import TieredFetcher
 from ..engine.probe import normalize_url, probe_url
 from ..engine.resolve import resolve_business_name
+from ..engine.store import SiteUrlTaken
 
 log = logging.getLogger("bidboard.companies")
 
@@ -28,6 +29,24 @@ def _settings() -> dict:
 
 def _fetcher() -> TieredFetcher:
     return TieredFetcher(EngineConfig.from_settings(_settings()), _store())
+
+
+def _already_watched(existing_site_id: int) -> str:
+    """Plain-English conflict message for a re-point onto a watched page."""
+    other = _store().get_site(existing_site_id)
+    where = ""
+    if other:
+        label = (other.get("label") or "").strip() or other.get("url") or ""
+        company = _store().get_company(other["company_id"]) or {}
+        name = (company.get("name") or "").strip()
+        if label and name:
+            where = f" by {name} - {label}"
+        elif label:
+            where = f" by {label}"
+    return (
+        f"That page is already watched{where}. Remove that location first, "
+        "or paste a different address."
+    )
 
 
 def _company_view(company: dict) -> dict:
@@ -162,7 +181,10 @@ def repoint_site(site_id: int):
     store = _store()
     if store.get_site(site_id) is None:
         return jsonify({"error": "Location not found."}), 404
-    store.repoint_site(site_id, url)
+    try:
+        store.repoint_site(site_id, url)
+    except SiteUrlTaken as clash:
+        return jsonify({"error": _already_watched(clash.existing_site_id)}), 409
     return jsonify({"ok": True, "url": url})
 
 
