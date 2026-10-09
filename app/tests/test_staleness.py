@@ -151,9 +151,17 @@ def test_truly_indistinguishable_rows_disambiguated_by_order(store):
 
 
 def test_overlap_detection(store):
+    """Two locations of one company posting the same bids are flagged.
+
+    Regression: ``row_identity_hash`` includes the site id, so two sites hash
+    the *same* bids differently and the old hash-to-hash comparison could never
+    match - DUPLICATE_PAGE_OVERLAP never fired in production. Each site is
+    scanned normally here (hashed under its own id), which is the path that
+    used to miss the overlap.
+    """
     cid = store.add_company("Co")
-    sid_a = store.add_site(cid, "https://a.example/bids", "Page A")
-    sid_b = store.add_site(cid, "https://a.example/bids2", "Page B")
+    sid_a = store.add_site(cid, "https://a.example/bids", "Westfield")
+    sid_b = store.add_site(cid, "https://b.example/bids", "Westfield")
 
     rows_a = [_row(start="2026-07-01"), _row(start="2026-08-01")]
     S.stamp_hashes(sid_a, rows_a)
@@ -163,11 +171,35 @@ def test_overlap_detection(store):
     store.save_bids(ps, sid_a, cid, rows_a)
     store.finish_run(run, "complete")
 
-    # site B has the SAME identities (same site_id hashing would differ, so
-    # build B's rows hashed under B but with identical business keys ->
-    # here we assert the >=80% overlap path using B's own hashes)
     rows_b = [_row(start="2026-07-01"), _row(start="2026-08-01")]
-    S.stamp_hashes(sid_a, rows_b)  # hash under A's id to simulate same page
-    site_b = store.get_site(sid_b)
-    flags = S.check_overlap(store, cid, site_b, rows_b)
+    S.stamp_hashes(sid_b, rows_b)  # hashed under B's own id, as the pipeline does
+    # Same bids, different site: the site-scoped hashes differ ...
+    assert rows_a[0].row_hash != rows_b[0].row_hash
+    # ... but the site-independent identity is what overlap compares.
+    assert S.business_identity(rows_a[0]) == S.business_identity(rows_b[0])
+
+    flags = S.check_overlap(store, cid, store.get_site(sid_b), rows_b)
     assert any(f.code == "DUPLICATE_PAGE_OVERLAP" for f in flags)
+
+
+def test_overlap_ignores_genuinely_different_pages(store):
+    """Distinct locations with different bids must not be flagged - the fix
+    must detect real duplicates, not everything."""
+    cid = store.add_company("Co")
+    sid_a = store.add_site(cid, "https://a.example/bids", "Westfield")
+    sid_c = store.add_site(cid, "https://c.example/bids", "Northfield")
+
+    rows_a = [_row(start="2026-07-01")]
+    S.stamp_hashes(sid_a, rows_a)
+    run = store.begin_run()
+    ps = store.record_page_scan(run, sid_a, _fetch(),
+                                ExtractionResult(rows=rows_a), "ok")
+    store.save_bids(ps, sid_a, cid, rows_a)
+    store.finish_run(run, "complete")
+
+    rows_c = [_row(start="2026-07-01", commodity="SOYBEANS", cash=3.90, basis=-0.30)]
+    rows_c[0].location_label = "Northfield"
+    S.stamp_hashes(sid_c, rows_c)
+
+    flags = S.check_overlap(store, cid, store.get_site(sid_c), rows_c)
+    assert flags == []
