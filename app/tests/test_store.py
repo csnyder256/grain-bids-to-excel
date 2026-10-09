@@ -135,6 +135,32 @@ def test_scan_run_bids_roundtrip_and_latest_only(store):
     assert store.latest_row_hashes(sid) == {"rh1"}
 
 
+def test_latest_bid_rows_returns_newest_scan(store):
+    """Overlap detection reads a site's newest bids back as stored columns."""
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids")
+
+    run1 = store.begin_run()
+    ps1 = store.record_page_scan(run1, sid, _fetch(), ExtractionResult(rows=[_row(cash=4.10, rh="r1")]), "ok")
+    store.save_bids(ps1, sid, cid, [_row(cash=4.10, rh="r1")])
+    store.finish_run(run1, "complete")
+
+    run2 = store.begin_run()
+    ps2 = store.record_page_scan(run2, sid, _fetch(), ExtractionResult(rows=[_row(cash=4.15, rh="r2")]), "ok")
+    store.save_bids(ps2, sid, cid, [_row(cash=4.15, rh="r2")])
+    store.finish_run(run2, "complete")
+
+    latest = store.latest_bid_rows(sid)
+    assert len(latest) == 1  # newest scan only, not both
+    assert latest[0]["location_label"] == "Westfield"
+    assert latest[0]["commodity"] == "CORN"
+    assert latest[0]["delivery_start"] == "2026-07-01"
+    assert latest[0]["futures_month"] == "2026-09"
+
+    # a site that has never scanned yields nothing, never a crash
+    assert store.latest_bid_rows(store.add_site(cid, "https://b.example/bids")) == []
+
+
 def test_query_bids_filters(store):
     cid_a = store.add_company("Alpha")
     cid_b = store.add_company("Beta")

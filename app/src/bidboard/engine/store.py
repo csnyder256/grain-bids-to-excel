@@ -560,6 +560,31 @@ class Store:
             ).fetchall()
         }
 
+    def latest_bid_rows(self, site_id: int) -> list[dict]:
+        """Bids from the most recent scan of a site, as stored columns.
+
+        Overlap detection compares one location's bids against another's, so it
+        cannot use ``row_hash``: that identity is site-scoped, so two locations
+        posting identical bids hash differently. This returns the raw columns a
+        site-independent key is rebuilt from.
+        """
+        row = self._conn.execute(
+            "SELECT id FROM page_scans WHERE site_id=? AND rows_extracted > 0 "
+            "ORDER BY id DESC LIMIT 1",
+            (site_id,),
+        ).fetchone()
+        if not row:
+            return []
+        return [
+            dict(r)
+            for r in self._conn.execute(
+                "SELECT location_label, commodity, commodity_raw, "
+                "delivery_start, delivery_end, delivery_raw, delivery_label, "
+                "futures_month FROM bids WHERE page_scan_id=?",
+                (row["id"],),
+            ).fetchall()
+        ]
+
     # ---------------- flags ----------------
 
     def add_flag(

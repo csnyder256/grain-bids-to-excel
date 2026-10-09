@@ -17,19 +17,54 @@ def _h(*parts) -> str:
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:32]
 
 
-def row_identity_hash(site_id: int, row: BidRow) -> str:
-    # Normalized dates are the stable identity; when delivery didn't parse
-    # (real pages say "Spot", "Nearby", "Current"...), fall back to the raw
-    # label so two different unparsed bids never share an identity.
-    if row.delivery_start or row.delivery_end:
-        delivery_key = f"{row.delivery_start}|{row.delivery_end}"
-    else:
-        delivery_key = (row.delivery_raw or row.delivery_label or "").strip().lower()
-    return _h(
-        site_id, row.location_label,
+def _delivery_identity(start, end, raw, label) -> str:
+    """The delivery component of a bid's identity.
+
+    Normalized dates when they parsed; otherwise the raw label, lowercased, so
+    two unparsed bids ("Spot" vs "Nearby") never share an identity."""
+    if start or end:
+        return f"{start}|{end}"
+    return (raw or label or "").strip().lower()
+
+
+def business_identity(row: BidRow) -> tuple:
+    """Site-independent bid identity.
+
+    Everything :func:`row_identity_hash` uses *except* the site id. Two
+    locations of one company that post the same bids share this key - which is
+    exactly what overlap detection needs, and what ``row_identity_hash`` cannot
+    provide because it bakes the site id into the hash.
+    """
+    return (
+        row.location_label,
         row.commodity or row.commodity_raw,
-        delivery_key, row.futures_month,
+        _delivery_identity(row.delivery_start, row.delivery_end,
+                           row.delivery_raw, row.delivery_label),
+        row.futures_month,
     )
+
+
+def _stored_business_identity(record: dict) -> tuple:
+    """Same key as :func:`business_identity`, built from a stored bid row.
+
+    Stored dates are ISO strings (``_iso``), which render identically to the
+    ``date`` objects :func:`_delivery_identity` sees on a live row, so the two
+    paths agree.
+    """
+    return (
+        record.get("location_label"),
+        record.get("commodity") or record.get("commodity_raw"),
+        _delivery_identity(record.get("delivery_start"), record.get("delivery_end"),
+                           record.get("delivery_raw"), record.get("delivery_label")),
+        record.get("futures_month"),
+    )
+
+
+def row_identity_hash(site_id: int, row: BidRow) -> str:
+    # Site-scoped identity: a bid belongs to a site, so the site id is part of
+    # the hash (two locations may post the same commodity and delivery and must
+    # still supersede independently).
+    return _h(site_id, *business_identity(row))
 
 
 def value_hash(row: BidRow) -> str:
@@ -136,18 +171,29 @@ def check_staleness(
 
 def check_overlap(store, company_id: int, site, rows: list[BidRow]) -> list[Flag]:
     """DUPLICATE_PAGE_OVERLAP when two sites of one company share >=80% of
-    their bid identities."""
+    their bid identities.
+
+    The comparison uses the *site-independent* identity (see
+    :func:`business_identity`). ``row_hash`` cannot be used here: it includes
+    the site id, so two locations of one company that post the very same bids
+    hash differently and the overlap was never detected. Reading the other
+    site's latest bids back as stored columns and rebuilding the same key
+    fixes that without changing what a single site's rows hash to.
+    """
     flags: list[Flag] = []
-    my_hashes = {r.row_hash for r in rows}
-    if not my_hashes:
+    my_keys = {business_identity(r) for r in rows}
+    if not my_keys:
         return flags
     for other in store.list_sites(company_id=company_id, enabled_only=False):
         if other["id"] == site["id"]:
             continue
-        other_hashes = store.latest_row_hashes(other["id"])
-        if not other_hashes:
+        other_keys = {
+            _stored_business_identity(r)
+            for r in store.latest_bid_rows(other["id"])
+        }
+        if not other_keys:
             continue
-        overlap = len(my_hashes & other_hashes) / len(my_hashes)
+        overlap = len(my_keys & other_keys) / len(my_keys)
         if overlap >= 0.8:
             flags.append(Flag(
                 "DUPLICATE_PAGE_OVERLAP", "warn",
