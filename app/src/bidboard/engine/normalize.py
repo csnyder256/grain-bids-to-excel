@@ -184,9 +184,17 @@ def parse_change(raw: str) -> float | None:
     if not m:
         return None
     try:
-        return round(float(m.group()), 6)
+        value = float(m.group())
     except ValueError:
         return None
+    # A day-over-day change written without a decimal point is quoted in cents,
+    # exactly like the basis column beside it (-13 -> -0.13, +2 -> +0.02).
+    # Reading a bare integer as whole dollars put a 100x-wrong number in the
+    # workbook's Change column: a page's "+2" (two cents up) landed as $2.00,
+    # while the adjacent basis was read correctly in cents.
+    if "." not in m.group():
+        value = value / 100.0
+    return round(value, 6)
 
 
 # ---- futures month ----

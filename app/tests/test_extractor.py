@@ -139,3 +139,36 @@ def test_basis_change_arithmetic_disambiguation():
     # basis is the column matching cash - futures = 4.10 - 4.23 = -0.13
     assert r.basis == pytest.approx(-0.13)
     assert r.change == pytest.approx(0.02)
+
+
+BASIS_CHANGE_BARE_CENTS = """
+<html><body><h2>Corn</h2>
+<table>
+<tr><th>Delivery</th><th>Cash Price</th><th>Futures</th><th>Basis</th><th>Change</th></tr>
+<tr><td>October 2026</td><td>4.10</td><td>4.23</td><td>-13</td><td>+2</td></tr>
+<tr><td>November 2026</td><td>4.14</td><td>4.23</td><td>-9</td><td>-3</td></tr>
+<tr><td>December 2026</td><td>4.18</td><td>4.23</td><td>-5</td><td>+1</td></tr>
+</table></body></html>
+"""
+
+
+def test_basis_and_change_bare_cents_are_read_the_same_way():
+    """A page that quotes basis and change as bare integers means cents for
+    both, because that is how the trade writes them.
+
+    Regression: the Basis column (-13 -> -0.13) was normalized to dollars but
+    the Change column beside it (+2 -> 2.0) was not, so the workbook's Change
+    column was 100x too large on the same row that read basis correctly.
+    """
+    res = extract_bids(BASIS_CHANGE_BARE_CENTS, "https://x.example/corn")
+    assert len(res.rows) == 3
+    first = res.rows[0]
+    assert first.basis == pytest.approx(-0.13)
+    assert first.change == pytest.approx(0.02)     # two cents up, not $2.00
+    assert res.rows[1].change == pytest.approx(-0.03)
+    assert res.rows[2].change == pytest.approx(0.01)
+    # cash - futures still reconciles against the basis on every row
+    for r in res.rows:
+        cash, futures, basis = r.cash_price, r.futures_price, r.basis
+        assert cash is not None and futures is not None and basis is not None
+        assert abs(cash - (futures + basis)) <= 0.03
