@@ -53,6 +53,31 @@ def test_parse_change(raw, expected):
 
 
 @pytest.mark.parametrize("raw,expected", [
+    ("+2", 0.02),            # two cents up, not two dollars up
+    ("-3", -0.03),
+    ("+13", 0.13),
+    ("-1", -0.01),
+    ("15", 0.15),
+])
+def test_parse_change_bare_ints_are_cents(raw, expected):
+    """A day-over-day change written without a decimal point is cents, the
+    same convention the basis column beside it uses.
+
+    Regression: basis (-13 -> -0.13) was converted to dollars but change
+    (+2 -> 2.0) was not, so on one row the workbook's Change column came out
+    100x too large.
+    """
+    assert N.parse_change(raw) == pytest.approx(expected)
+
+
+def test_parse_change_decimal_point_stays_dollars():
+    """A change that already carries a decimal point is in dollars and is
+    left alone."""
+    assert N.parse_change("+0.13") == pytest.approx(0.13)
+    assert N.parse_change("-0.05") == pytest.approx(-0.05)
+
+
+@pytest.mark.parametrize("raw,expected", [
     ("Sep 26 Corn", "2026-09"),
     ("Sep 26", "2026-09"),
     ("December 2026", "2026-12"),
