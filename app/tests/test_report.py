@@ -6,7 +6,7 @@ import pytest
 from openpyxl import load_workbook
 
 from bidboard.engine.store import Store
-from bidboard.engine.types import BidRow, ExtractionResult, FetchResult
+from bidboard.engine.types import BidRow, ExtractionResult, FetchResult, Flag
 from bidboard.report import builder, styles
 from bidboard.settings import DEFAULT_SETTINGS
 import copy
@@ -172,3 +172,119 @@ def test_company_override_applies(seeded_store, tmp_path):
         if v:
             commodities.add(v)
     assert "CORN" not in commodities
+
+
+# ---- every recorded flag reaches the workbook -------------------------------
+#
+# The Data Health sheet is the workbook's "anything worth checking" page and the
+# cover's "Needs attention" block is its digest. Both used to consult a small
+# code->phrase map, so a flag whose code was not in that map was dropped: the
+# page read "Up to date." on Data Health and "Everything looks up to date." on
+# the cover even though the scan had recorded a real warning against it.
+
+WESTFIELD_REPEAT = Flag(
+    "STALE_REPEAT", "warn",
+    "Westfield has shown exactly the same numbers for the last 3 scans.",
+    "Markets usually move daily - this page may be frozen.",
+)
+
+
+def _site(store, label):
+    return next(s for s in store.list_sites() if s["label"] == label)
+
+
+def _flag_on(store, run, label, flag):
+    site = _site(store, label)
+    store.add_flag(flag, run_id=run, site_id=site["id"],
+                   company_id=site["company_id"])
+
+
+def _data_health_rows(path):
+    ws = load_workbook(path)["Data Health"]
+    out = {}
+    for r in range(7, ws.max_row + 1):
+        company = ws.cell(row=r, column=1).value
+        if company:
+            out[(company, ws.cell(row=r, column=2).value)] = {
+                "status": ws.cell(row=r, column=6).value,
+                "notices": ws.cell(row=r, column=8).value,
+                "suggestion": ws.cell(row=r, column=9).value,
+            }
+    return out
+
+
+def _cover_text(path):
+    ws = load_workbook(path)["Summary"]
+    return "\n".join(
+        str(c.value) for row in ws.iter_rows() for c in row if c.value is not None
+    )
+
+
+def test_data_health_shows_a_flag_whose_code_is_not_in_the_short_map(seeded_store, tmp_path):
+    """A recorded flag the short map does not know still reaches Data Health.
+
+    Regression: STALE_REPEAT / STALE_DELIVERY / DUPLICATE_PAGE_OVERLAP /
+    RENDER_TIMEOUT are flags the engine really emits, and none was in
+    ``FLAG_MESSAGES``. Their plain-English message and suggestion were thrown
+    away, so a page that had shown identical numbers for three scans reported
+    "Up to date." with no suggested action.
+    """
+    store, run = seeded_store
+    _flag_on(store, run, "Westfield", WESTFIELD_REPEAT)
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    result = builder.build_reports(store, settings, run, tmp_path / "out", now=NOW)
+
+    row = _data_health_rows(result.files[0].path)[("Prairie Ridge Grain", "Westfield")]
+    assert row["status"] == "FRESH", "this page's bids are dated two days ago"
+    assert WESTFIELD_REPEAT.message in row["notices"]
+    assert row["suggestion"] == WESTFIELD_REPEAT.suggestion
+
+
+def test_data_health_keeps_the_short_notice_and_the_flags_own_action(seeded_store, tmp_path):
+    """Codes the short map covers keep their short notice, and the suggested
+    action is the flag's own text - the same thing the FAILED branch shows."""
+    store, run = seeded_store
+    _flag_on(store, run, "Westfield", Flag(
+        "LOW_CONFIDENCE_EXTRACTION", "warn",
+        "We found something that might be a bid table on https://x.example/bids, "
+        "but we're not fully sure we read it right.",
+        "Please compare a row or two against the live page.",
+    ))
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    result = builder.build_reports(store, settings, run, tmp_path / "out", now=NOW)
+
+    row = _data_health_rows(result.files[0].path)[("Prairie Ridge Grain", "Westfield")]
+    assert row["notices"] == "We weren't fully sure we read this table right."
+    assert row["suggestion"] == "Please compare a row or two against the live page."
+
+
+def test_cover_lists_a_fresh_page_that_flagged_something(seeded_store, tmp_path):
+    """The cover may not claim everything is fine while Data Health disagrees.
+
+    Regression: "Needs attention" skipped every FRESH page, so a page read this
+    morning but read uncertainly produced the sentence "Everything looks up to
+    date." on the cover and a warning row on the very next sheet.
+    """
+    store, run = seeded_store
+    _flag_on(store, run, "Westfield", WESTFIELD_REPEAT)
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    result = builder.build_reports(store, settings, run, tmp_path / "out", now=NOW)
+
+    text = _cover_text(result.files[0].path)
+    assert "Everything looks up to date." not in text
+    assert "CHECK" in text
+    assert "Westfield" in text
+    assert WESTFIELD_REPEAT.message in text
+
+
+def test_cover_and_data_health_agree_when_nothing_is_flagged(seeded_store, tmp_path):
+    """No flags, no false alarm: both places still report a clean run."""
+    store, run = seeded_store
+    settings = copy.deepcopy(DEFAULT_SETTINGS)
+    result = builder.build_reports(store, settings, run, tmp_path / "out", now=NOW)
+
+    path = result.files[0].path
+    assert "Everything looks up to date." in _cover_text(path)
+    rows = _data_health_rows(path)
+    assert rows[("Prairie Ridge Grain", "Westfield")]["notices"] == "Up to date."
+    assert not rows[("Prairie Ridge Grain", "Westfield")]["suggestion"]

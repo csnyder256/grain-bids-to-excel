@@ -111,11 +111,16 @@ def compute_health(store, run_id: int, thresholds: dict, now: datetime) -> list[
         elif status == "AGING":
             notices.append(f"Bids are {age} days old - could just be a weekend or holiday." if age else "")
         for f in flags_by_site.get(sid, []):
-            msg = FLAG_MESSAGES.get(f["code"])
-            if msg:
-                notices.append(msg)
-                if not suggestion:
-                    suggestion = "Open the source page and compare one row."
+            # Prefer the curated short phrasing, but never drop a flag the scan
+            # actually recorded. The engine writes a plain-English message and
+            # suggestion on every flag, so codes outside this small map
+            # (STALE_REPEAT, STALE_DELIVERY, DUPLICATE_PAGE_OVERLAP,
+            # RENDER_TIMEOUT ...) must fall back to their own text - otherwise
+            # a page with real problems reported "Up to date." here and
+            # "Everything looks up to date." on the cover.
+            notices.append(FLAG_MESSAGES.get(f["code"]) or f["message"])
+            if not suggestion:
+                suggestion = f["suggestion"] or "Open the source page and compare one row."
 
         out.append(PageHealth(
             company=meta["company"], location=meta["location"], url=meta["url"],
