@@ -210,15 +210,23 @@ def _build_per_commodity(store, settings, run_id, out_dir, now, tokens):
 
 
 def _attention_items(health):
+    """The cover's "Needs attention" digest of the Data Health sheet.
+
+    A page is listed when it is STALE or FAILED, or when it produced a flag
+    worth acting on (``compute_health`` sets a suggestion only when it did).
+    Freshness is deliberately not part of that test: a page read this morning
+    can still have been read uncertainly, and gating on status made the cover
+    say "Everything looks up to date." while the Data Health sheet in the same
+    workbook named the page it was unsure about.
+    """
     items = []
     for h in health:
         if h.status in ("STALE", "FAILED"):
             items.append({"badge": "STALE" if h.status == "STALE" else "FAILED",
                           "message": f"{h.company} – {h.location}: {h.notices}"})
-        elif "noticed" in (h.notices or "").lower() or h.suggestion:
-            if h.status != "FRESH":
-                items.append({"badge": "CHECK",
-                              "message": f"{h.company} – {h.location}: {h.notices}"})
+        elif h.suggestion:
+            items.append({"badge": "CHECK",
+                          "message": f"{h.company} – {h.location}: {h.notices}"})
     return items
 
 
