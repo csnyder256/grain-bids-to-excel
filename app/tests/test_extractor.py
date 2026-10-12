@@ -132,6 +132,80 @@ def test_repeated_header_rows_not_extracted_as_data():
     assert not any(r.delivery_raw == "Delivery" for r in res.rows)
 
 
+# ---- the page's own arithmetic, reported when it does not add up -----------
+#
+# `cash == futures + basis` is the identity every bid sheet obeys, and the
+# extractor already leans on it twice (basis-vs-change, and the per-row
+# confidence nudge). Only the agreeing side of that test was ever acted on, so
+# a basis read with the wrong sign left the workbook asserting a number that
+# contradicts its own row while saying nothing. README lists "arithmetic
+# mismatch" among the flags; report/health.py already carries the
+# merchandiser-facing sentence for it.
+
+# The trade writes a negative basis as "13 under" (both Missouri and Minnesota
+# extension material spell it out that way). parse_basis keeps the number and
+# drops the word, so the column reads +0.13 while cash - futures is -0.13.
+BASIS_WRITTEN_UNDER = """
+<html><body><h2>Corn</h2>
+<table>
+<tr><th>Delivery</th><th>Cash Bid</th><th>Futures</th><th>Basis</th></tr>
+<tr><td>October 2026</td><td>4.10</td><td>4.23</td><td>13 under</td></tr>
+<tr><td>November 2026</td><td>4.14</td><td>4.23</td><td>9 under</td></tr>
+<tr><td>December 2026</td><td>4.18</td><td>4.23</td><td>5 under</td></tr>
+</table></body></html>
+"""
+
+
+def test_arithmetic_mismatch_is_flagged_and_the_rows_are_kept():
+    """A page whose own numbers contradict each other gets the documented flag.
+
+    The rows are still returned - the flag is the honest report, not a silent
+    drop - and it names how many rows disagree, so the user knows the size of
+    the problem before trusting the export.
+    """
+    res = extract_bids(BASIS_WRITTEN_UNDER, "https://x.example/corn")
+
+    assert len(res.rows) == 3, "rows are never dropped to hide the mismatch"
+    flag = next(f for f in res.flags if f.code == "ARITHMETIC_MISMATCH")
+    assert flag.severity == "warn"
+    assert "3 of 3" in flag.message
+    assert flag.data["rows_checked"] == 3
+    assert flag.data["rows_mismatched"] == 3
+    assert flag.data["worst_gap"] == pytest.approx(0.26)
+    assert flag.suggestion, "the flag has to say what to do about it"
+
+
+def test_a_page_that_reconciles_is_not_flagged():
+    """The guard against crying wolf: when the numbers add up, no flag."""
+    res = extract_bids(BASIS_CHANGE_AMBIGUOUS, "https://x.example/corn")
+    assert res.rows
+    assert not any(f.code == "ARITHMETIC_MISMATCH" for f in res.flags)
+
+
+ONE_ODD_ROW = """
+<html><body><h2>Corn</h2>
+<table>
+<tr><th>Delivery</th><th>Cash Bid</th><th>Futures</th><th>Basis</th></tr>
+<tr><td>October 2026</td><td>4.10</td><td>4.23</td><td>-0.13</td></tr>
+<tr><td>November 2026</td><td>4.14</td><td>4.23</td><td>-0.09</td></tr>
+<tr><td>December 2026</td><td>4.18</td><td>4.23</td><td>-0.05</td></tr>
+<tr><td>January 2027</td><td>4.21</td><td>4.23</td><td>0.02</td></tr>
+</table></body></html>
+"""
+
+
+def test_one_odd_row_does_not_flag_the_whole_page():
+    """A single row that does not reconcile is not a page-wide pattern.
+
+    Flagging it would train the user to ignore the flag on the pages that
+    really are misread, so the check needs a second disagreeing row and at
+    least half the reconcilable rows before it speaks.
+    """
+    res = extract_bids(ONE_ODD_ROW, "https://x.example/corn")
+    assert len(res.rows) == 4
+    assert not any(f.code == "ARITHMETIC_MISMATCH" for f in res.flags)
+
+
 def test_basis_change_arithmetic_disambiguation():
     res = extract_bids(BASIS_CHANGE_AMBIGUOUS, "https://x.example/corn")
     assert len(res.rows) == 2

@@ -20,6 +20,17 @@ from .types import BidRow, ExtractionResult, Flag, VendorHints
 ACCEPT_SCORE = 8.0
 LOW_SCORE = 4.0
 
+# The trade identity every bid sheet obeys - cash == futures + basis - and the
+# tolerance it is judged with. Small gaps are rounding; a larger one means the
+# page was not read the way it was written. The same tolerance is used for the
+# per-row confidence nudge and for the page-level ARITHMETIC_MISMATCH check, so
+# the two can never disagree about what "adds up" means.
+IDENTITY_TOLERANCE = 0.03
+# A page-wide pattern, not one odd row: at least this many rows must disagree,
+# and they must be at least half of the rows that carry all three numbers.
+MISMATCH_MIN_ROWS = 2
+MISMATCH_SHARE = 0.5
+
 _AS_OF_RE = re.compile(
     r"(?i)(?:cash\s+bids?|prices?|quotes?)\s+(?:as\s+of|for)\s+(.{4,40}?\d{4})"
 )
@@ -309,7 +320,7 @@ def _build_rows(
 
         # arithmetic bonus
         if cash is not None and basis is not None and fut is not None:
-            if abs(cash - (fut + basis)) <= 0.03:
+            if abs(cash - (fut + basis)) <= IDENTITY_TOLERANCE:
                 confidence = min(1.0, confidence + 0.1)
 
         row = BidRow(
@@ -473,7 +484,60 @@ def extract_bids(
             "Please compare a row or two against the live page.",
             {"url": url},
         ))
+
+    # The page's own arithmetic, checked across every row we read. This is a
+    # page-level verdict and is independent of the per-container confidence
+    # above: rows can be read confidently and still contradict each other.
+    mismatch = _arithmetic_mismatch_flag(all_rows, url)
+    if mismatch is not None:
+        result.flags.append(mismatch)
     return result
+
+
+def _arithmetic_mismatch_flag(rows: list[BidRow], url: str) -> Flag | None:
+    """ARITHMETIC_MISMATCH when a page's own three numbers do not reconcile.
+
+    ``cash == futures + basis`` is the identity every bid sheet obeys, and the
+    extractor already leans on it twice - to tell basis from day change, and to
+    nudge a row's confidence up. Only the agreeing side of that test was ever
+    acted on, so a basis read with the wrong sign exported a number that
+    contradicts the row it sits in and the workbook said nothing: a page that
+    writes its basis the way the trade speaks it ("13 under", meaning -13c)
+    comes back as +0.13, and a page whose futures column belongs to another
+    contract comes back as whatever the columns happened to say.
+
+    Reported only as a page-wide pattern: at least ``MISMATCH_MIN_ROWS`` rows
+    that carry all three numbers must disagree, and they must be at least
+    ``MISMATCH_SHARE`` of them, so one odd row cannot flag a clean page. The
+    rows themselves are never dropped - this is the honest report, not a
+    silent failure (README: "arithmetic mismatch" is one of the flags).
+    """
+    checked = 0
+    off: list[BidRow] = []
+    worst = 0.0
+    for r in rows:
+        if r.cash_price is None or r.futures_price is None or r.basis is None:
+            continue
+        checked += 1
+        gap = abs(r.cash_price - (r.futures_price + r.basis))
+        if gap > IDENTITY_TOLERANCE:
+            off.append(r)
+            worst = max(worst, gap)
+    if checked < MISMATCH_MIN_ROWS:
+        return None
+    if len(off) < MISMATCH_MIN_ROWS or len(off) < MISMATCH_SHARE * checked:
+        return None
+    return Flag(
+        "ARITHMETIC_MISMATCH", "warn",
+        f"On {url}, the cash bid doesn't equal the futures price plus the "
+        f"basis on {len(off)} of {checked} rows - out by as much as "
+        f"${worst:.2f}.",
+        "The basis may be written the other way round - a minus sign, or the "
+        "word 'under'. Check one row against the live page before you use "
+        "these numbers.",
+        {"url": url, "rows_checked": checked,
+         "rows_mismatched": len(off), "worst_gap": round(worst, 4)},
+    )
 
 
 def _no_data_flag(url: str) -> Flag:
