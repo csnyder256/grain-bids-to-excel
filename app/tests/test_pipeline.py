@@ -263,3 +263,34 @@ def test_no_rows_progress_reports_each_flag_once_and_completes(store, site):
     done = [e for e in events if e.stage == "done"]
     assert len(done) == 1
     assert str(len(outcome.flags)) in done[0].message
+
+
+# ------------------------------------- arithmetic mismatch reaches the store
+
+# A page whose basis is written the way the trade speaks it: "13 under" means
+# -13c, but parse_basis keeps the number and drops the word, so the three price
+# columns end up contradicting each other. That contradiction is what the
+# documented ARITHMETIC_MISMATCH flag is for, and it is the only thing telling
+# the user the numbers on this page do not add up.
+MISMATCH_PAGE = """
+<html><body><h2>Corn</h2>
+<table>
+<tr><th>Delivery</th><th>Cash Bid</th><th>Futures</th><th>Basis</th></tr>
+<tr><td>October 2027</td><td>4.10</td><td>4.23</td><td>13 under</td></tr>
+<tr><td>November 2027</td><td>4.14</td><td>4.23</td><td>9 under</td></tr>
+</table></body></html>
+"""
+
+
+def test_arithmetic_mismatch_flag_is_persisted_and_returned(store, site):
+    """The flag has to survive the pipeline: written to the store once and
+    handed back once, so the run summary and the workbook cannot disagree
+    about whether this page was clean."""
+    fetcher = _Fetcher(tier1=MISMATCH_PAGE, tier2=None)
+
+    run, outcome = _scan(store, site, fetcher)
+
+    assert outcome.rows == 2, "the rows are still delivered; the flag is the warning"
+    assert _returned(outcome).count("ARITHMETIC_MISMATCH") == 1
+    assert _persisted(store, run).count("ARITHMETIC_MISMATCH") == 1
+    assert _returned(outcome) == _persisted(store, run)
