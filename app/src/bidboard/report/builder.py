@@ -102,32 +102,39 @@ def _build_master(store, settings, run_id, out_dir, now, tokens):
         hs = wb.create_sheet(sheet_name("Data Health", taken))
         L.write_data_health(hs, health, eff_global, now)
 
-    # one sheet per company
+    # one sheet per company - or, when the master workbook is set to
+    # "company_location", one sheet per location page inside each company
     sheet_per = settings["output"].get("master", {}).get("sheet_per", "company")
     data_sheets = 0
     cap = settings["output"].get("max_data_sheets_per_workbook", 24)
+    cap_reached = False
     for comp in companies:
         eff = settings_mod.resolve(settings, comp["id"])
         rows = Q.fetch_bid_rows(store, run_id, eff, company_id=comp["id"])
         if not rows:
             continue
-        if data_sheets >= cap:
-            log.info("sheet cap reached at %d", cap)
+        for title, group in _master_sheet_groups(comp["name"], rows, sheet_per):
+            if data_sheets >= cap:
+                cap_reached = True
+                break
+            ws = wb.create_sheet(sheet_name(title, taken))
+            as_of = _max_as_of(group)
+            L.write_bid_sheet(
+                ws, group, eff,
+                title=title,
+                subtitle=f"Cash bids as of {as_of:%B %d, %Y}" if as_of else "Cash bids",
+                small=f"Scanned {now:%b %d, %Y %I:%M %p} · Source: {_domain(group)}",
+                source_url=group[0].get("site_url"),
+                include_company=False,
+                include_location=True,
+                charts_mode=eff.get("charts", charts),
+                now=now,
+            )
+            data_sheets += 1
+        if cap_reached:
             break
-        ws = wb.create_sheet(sheet_name(comp["name"], taken))
-        as_of = _max_as_of(rows)
-        L.write_bid_sheet(
-            ws, rows, eff,
-            title=comp["name"],
-            subtitle=f"Cash bids as of {as_of:%B %d, %Y}" if as_of else "Cash bids",
-            small=f"Scanned {now:%b %d, %Y %I:%M %p} · Source: {_domain(rows)}",
-            source_url=rows[0].get("site_url"),
-            include_company=False,
-            include_location=(sheet_per == "company"),
-            charts_mode=eff.get("charts", charts),
-            now=now,
-        )
-        data_sheets += 1
+    if cap_reached:
+        log.info("sheet cap reached at %d", cap)
 
     # All Bids flat sheet
     if settings["output"].get("master", {}).get("include_all_bids_sheet", True) and all_rows:
@@ -149,6 +156,37 @@ def _build_master(store, settings, run_id, out_dir, now, tokens):
     written = F.safe_write(wb, target)
     return [ReportFile(str(written), "master", "All",
                        len(wb.sheetnames), len(all_rows))]
+
+
+def _master_sheet_groups(
+    company_name: str, rows: list[dict], sheet_per: str
+) -> list[tuple[str, list[dict]]]:
+    """(sheet title, rows) pairs for the master workbook's company sheets.
+
+    ``master.sheet_per: "company"`` (the default) is one sheet per company.
+    ``master.sheet_per: "company_location"`` is one sheet per location page:
+    the rows are split by their source site - the app's "location" - so two
+    pages of one company never share a sheet and every bid keeps a named home.
+
+    The split is by site id, not by the label, so two location pages that
+    happen to carry the same label stay separate as well.
+
+    Until now the second choice only dropped the Location column: the workbook
+    still held one sheet per company, so the bids of two locations merged into
+    a single sheet and nothing said which elevator a row came from.
+    """
+    if sheet_per != "company_location":
+        return [(company_name, rows)]
+    by_site: dict[int | None, list[dict]] = {}
+    for row in rows:
+        by_site.setdefault(row.get("site_id"), []).append(row)
+    groups = []
+    for site_rows in by_site.values():
+        label = (site_rows[0].get("site_label") or "").strip()
+        title = f"{company_name} - {label}" if label else company_name
+        groups.append((title, site_rows))
+    groups.sort(key=lambda pair: pair[0].lower())
+    return groups
 
 
 def _build_per_company(store, settings, run_id, out_dir, now, tokens):
