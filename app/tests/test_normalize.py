@@ -123,3 +123,23 @@ def test_delivery_unparsed_flagged():
 
 def test_parse_as_of_longform():
     assert N.parse_as_of("Cash bids for Thursday, July 02, 2026") == date(2026, 7, 2)
+
+
+def test_parse_as_of_numeric_date_inside_a_header_phrase():
+    """A header is a phrase, not a bare date, so numeric as-of dates must be
+    searched for. The old fallback called the anchored ``_parse_mdy``, which
+    reads only a string that starts with the date - so a page writing
+    "Cash bids as of 07/02/2026" lost its own as-of date entirely."""
+    assert N.parse_as_of("Cash bids as of 07/02/2026") == date(2026, 7, 2)
+    assert N.parse_as_of("As of 07/02/2026") == date(2026, 7, 2)
+    assert N.parse_as_of("Cash Bids as of 7/2/26") == date(2026, 7, 2)  # 2-digit year pivots
+
+
+def test_parse_as_of_iso_date_inside_a_header_phrase():
+    assert N.parse_as_of("Prices as of 2026-07-02") == date(2026, 7, 2)
+
+
+def test_parse_as_of_bare_numeric_date_is_unchanged():
+    """A bare date string still reads exactly as it did before."""
+    assert N.parse_as_of("07/02/26") == date(2026, 7, 2)
+    assert N.parse_as_of("") is None

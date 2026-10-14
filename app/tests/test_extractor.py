@@ -139,3 +139,25 @@ def test_basis_change_arithmetic_disambiguation():
     # basis is the column matching cash - futures = 4.10 - 4.23 = -0.13
     assert r.basis == pytest.approx(-0.13)
     assert r.change == pytest.approx(0.02)
+
+
+NUMERIC_AS_OF_PAGE = """
+<html><body><h2>Corn</h2>
+<p class="fcControlsSectionHeader">Cash Bids as of 07/02/2026</p>
+<table>
+<tr><th>Delivery</th><th>Cash Price</th><th>Basis</th></tr>
+<tr><td>October 2026</td><td>4.10</td><td>-0.25</td></tr>
+<tr><td>November 2026</td><td>4.20</td><td>-0.20</td></tr>
+</table></body></html>
+"""
+
+
+def test_numeric_as_of_header_is_read_as_a_date():
+    """The extractor hands ``parse_as_of`` the whole header phrase, never a
+    bare date. With only the anchored numeric fallback the phrase yielded
+    nothing, so the page's own as-of date was dropped - no age in Data
+    Health, no STALE_ASOF, and a blank "Bids as of" in the workbook."""
+    res = extract_bids(NUMERIC_AS_OF_PAGE, "https://x.example/corn")
+    assert res.as_of_text == "Cash Bids as of 07/02/2026"
+    assert res.as_of_date == date(2026, 7, 2)
+    assert len(res.rows) == 2  # reading the date must not disturb the rows

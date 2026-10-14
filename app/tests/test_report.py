@@ -172,3 +172,48 @@ def test_company_override_applies(seeded_store, tmp_path):
         if v:
             commodities.add(v)
     assert "CORN" not in commodities
+
+
+def test_numeric_as_of_page_ages_in_data_health(tmp_path):
+    """End to end: a page whose as-of date is written MM/DD/YYYY ages properly.
+
+    The extractor reads the date out of the header phrase, so Data Health gets
+    the real as-of date and reports the page STALE with its true age. While the
+    numeric date was being dropped the page sat on AGING with no age at all and
+    could never reach STALE, however long its bids went unchanged.
+    """
+    from bidboard.engine.extractor import extract_bids
+    from bidboard.report import health as HEALTH
+
+    page = (
+        "<html><body><h2>Corn</h2>"
+        '<p class="fcControlsSectionHeader">Cash Bids as of 06/20/2026</p>'
+        "<table>"
+        "<tr><th>Delivery</th><th>Cash Price</th><th>Basis</th></tr>"
+        "<tr><td>July 2026</td><td>4.10</td><td>-0.25</td></tr>"
+        "<tr><td>August 2026</td><td>4.20</td><td>-0.20</td></tr>"
+        "</table></body></html>"
+    )
+    store = Store(str(tmp_path / "health.db"))
+    try:
+        cid = store.add_company("Prairie Ridge Grain")
+        sid = store.add_site(cid, "https://prairie.example/bids", "Westfield")
+        res = extract_bids(page, "https://prairie.example/bids", location="Westfield")
+        assert res.as_of_date == date(2026, 6, 20)
+
+        run = store.begin_run()
+        ps = store.record_page_scan(run, sid, _fetch(), res, "ok",
+                                    content_signature="sig")
+        store.save_bids(ps, sid, cid, res.rows)
+        store.finish_run(run, "complete")
+
+        health = HEALTH.compute_health(
+            store, run, {"aging_days": 2, "stale_days": 5},
+            datetime(2026, 7, 4, 8, 30),
+        )
+        row = next(h for h in health if h.company == "Prairie Ridge Grain")
+        assert row.as_of == date(2026, 6, 20)
+        assert row.age_days == 14
+        assert row.status == "STALE"
+    finally:
+        store.close()
