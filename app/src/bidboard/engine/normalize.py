@@ -242,6 +242,8 @@ _RANGE_CROSS_MONTH_RE = re.compile(
 )
 _MONTH_YEAR_RE = re.compile(r"(?i)^([a-z]+)\.?\s*(\d{4})$")
 _MONTH_SLASH_RE = re.compile(r"(?i)^([a-z]+)\s*/\s*([a-z]+)$")
+_MDY_ANY_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{2,4})\b")
+_ISO_ANY_RE = re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
 _LITERAL_RANGE_RE = re.compile(
     r"(\d{1,2}/\d{1,2}/\d{2,4})\s*[-–]\s*(\d{1,2}/\d{1,2}/\d{2,4})"
 )
@@ -383,8 +385,34 @@ def parse_last_update(raw: str) -> date | None:
     return None
 
 
+def _parse_mdy_anywhere(text: str) -> date | None:
+    """First MM/DD/YY(YY) date in a phrase (``_parse_mdy`` anchors at the start)."""
+    m = _MDY_ANY_RE.search(text)
+    return _parse_mdy(m.group(0)) if m else None
+
+
+def _parse_iso(text: str) -> date | None:
+    m = _ISO_ANY_RE.search(text)
+    if not m:
+        return None
+    try:
+        return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
 def parse_as_of(text: str) -> date | None:
-    """Extract an 'as of' date from a page header string."""
+    """Extract an 'as of' date from a page header string.
+
+    The caller hands over a whole header phrase - ``extractor._AS_OF_RE``
+    captures "cash bids as of <date>" and the ``fcControlsSectionHeader``
+    element is passed through as-is - never a bare date. So the numeric forms
+    are *searched* for: the old fallback called ``_parse_mdy``, which anchors
+    at position 0, and read only a string that began with the date. A page
+    that wrote its as-of date as ``MM/DD/YYYY`` therefore had the date
+    silently dropped - Data Health showed no age and could never report the
+    page STALE, and the workbook's "Bids as of" column stayed empty.
+    """
     if not text:
         return None
     m = re.search(
@@ -392,4 +420,4 @@ def parse_as_of(text: str) -> date | None:
     )
     if m and m.group(1).lower() in MONTH_NAMES:
         return _safe_date(int(m.group(3)), MONTH_NAMES[m.group(1).lower()], int(m.group(2)))
-    return _parse_mdy(text)
+    return _parse_mdy_anywhere(text) or _parse_iso(text)
