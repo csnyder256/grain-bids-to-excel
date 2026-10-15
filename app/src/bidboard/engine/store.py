@@ -605,6 +605,32 @@ class Store:
                 "UPDATE flags SET resolved=1 WHERE id=?", (flag_id,)
             )
 
+    def resolve_site_flags(
+        self, site_id: int, *, keep_run_id: int | None = None
+    ) -> int:
+        """Close a page's earlier flags now that the page has been re-read.
+
+        A flag is a verdict about one page at the moment it was read ("this
+        site blocked us", "no bid table here", "the bids look stale"). The
+        moment the page is read again that verdict has been re-decided: the
+        fresh scan writes whatever is still true, so leaving the earlier run's
+        flags open as well makes them permanent - nothing else ever resolves a
+        flag, so the company card's "N to review" only ever grew.
+
+        ``keep_run_id`` is the scan that just finished; flags belonging to it
+        are kept open. Flags with no run id are closed too: they are attached
+        to this site, so they describe the same page and are at least as old as
+        this reading. Flags on other sites are never touched. Returns the
+        number of flags closed.
+        """
+        q = "UPDATE flags SET resolved=1 WHERE site_id=? AND resolved=0"
+        args: list = [site_id]
+        if keep_run_id is not None:
+            q += " AND (run_id IS NULL OR run_id<>?)"
+            args.append(keep_run_id)
+        with self._lock, self._conn:
+            return self._conn.execute(q, args).rowcount
+
     # ---------------- discovered links ----------------
 
     def upsert_discovered_links(

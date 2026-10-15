@@ -55,6 +55,10 @@ def _row(commodity="CORN", start="2026-07-01", cash=4.10, rh="rh1", vh="vh1"):
     )
 
 
+def _flag(code="STALE_ASOF", severity="warn"):
+    return Flag(code, severity, f"{code} happened.", "Check the page.")
+
+
 def test_schema_migrates_and_meta_roundtrip(store):
     assert store.get_meta("schema_version") == "1"
     store.set_meta("instance_uuid", "abc-123")
@@ -172,6 +176,46 @@ def test_flags_lifecycle(store):
 
     store.resolve_flag(fid)
     assert store.open_flags() == []
+
+
+def test_resolve_site_flags_closes_only_earlier_readings(store):
+    """A flag is a verdict about one reading of one page.
+
+    Nothing in the app ever called ``resolve_flag``, so every flag a page had
+    ever raised stayed open: the company card's "N to review" only grew, and a
+    page that had started reading cleanly again kept its old warnings. Re-
+    reading a page closes its earlier flags and keeps this run's.
+    """
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids")
+    other = store.add_site(cid, "https://b.example/bids")
+
+    run1 = store.begin_run()
+    store.add_flag(_flag("HTTP_403_BOTBLOCK"), run_id=run1, site_id=sid, company_id=cid)
+    store.add_flag(_flag("NO_BID_DATA"), run_id=run1, site_id=other, company_id=cid)
+
+    run2 = store.begin_run()
+    store.add_flag(_flag("HTTP_403_BOTBLOCK"), run_id=run2, site_id=sid, company_id=cid)
+
+    closed = store.resolve_site_flags(sid, keep_run_id=run2)
+
+    assert closed == 1, "only the first reading's flag on this page closes"
+    assert {(f["site_id"], f["run_id"]) for f in store.open_flags(company_id=cid)} == {
+        (sid, run2), (other, run1),
+    }
+    # idempotent: this run's flag is still open and cannot be closed twice
+    assert store.resolve_site_flags(sid, keep_run_id=run2) == 0
+
+
+def test_resolve_site_flags_closes_everything_on_the_page_without_a_run(store):
+    cid = store.add_company("Co")
+    sid = store.add_site(cid, "https://a.example/bids")
+    run = store.begin_run()
+    store.add_flag(_flag("STALE_ASOF"), run_id=run, site_id=sid, company_id=cid)
+    store.add_flag(_flag("STALE_REPEAT"), site_id=sid, company_id=cid)  # no run id
+
+    assert store.resolve_site_flags(sid) == 2
+    assert store.open_flags(company_id=cid) == []
 
 
 def test_discovered_links_upsert_and_status(store):

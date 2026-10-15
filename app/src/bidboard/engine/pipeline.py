@@ -66,6 +66,18 @@ def _persist_flags(store, flags, *, run_id, site_id, company_id,
     return list(flags)
 
 
+def _supersede_previous_flags(store, site_id: int, run_id: int) -> None:
+    """Close this page's earlier flags once this reading has been recorded.
+
+    Called after a page's own flags are persisted, so the page always ends a
+    scan with exactly the flags that scan produced. Without it a page that
+    warned once warned forever: ``flags.resolved`` was never set by anything,
+    so the company card's "N to review" counted every flag the page had ever
+    raised and never fell when the page started reading cleanly again.
+    """
+    store.resolve_site_flags(site_id, keep_run_id=run_id)
+
+
 def _needs_escalation(html: str, vendor, extraction) -> bool:
     """Decide whether Tier-1 output warrants a Tier-2 render."""
     if vendor.needs_js and not extraction.rows:
@@ -105,6 +117,7 @@ def scan_site(
         for f in fetched.flags:
             store.add_flag(f, run_id=run_id, site_id=site_id, company_id=company_id)
         store.record_page_scan(run_id, site_id, fetched, None, outcome)
+        _supersede_previous_flags(store, site_id, run_id)
         _emit(progress, ProgressEvent(company_id, site_id, "flag",
                                       fetched.flags[0].message, "error"))
         return PageScanOutcome(site_id, outcome, 0, fetched.flags)
@@ -174,6 +187,7 @@ def scan_site(
             run_id=run_id, site_id=site_id, company_id=company_id,
             progress=progress,
         )
+        _supersede_previous_flags(store, site_id, run_id)
 
         # discovery: remember sibling bid pages for later suggestion
         try:
@@ -200,6 +214,7 @@ def scan_site(
         progress=progress,
     )
     store.record_page_scan(run_id, site_id, used, extraction, outcome)
+    _supersede_previous_flags(store, site_id, run_id)
     msg = f"No bid rows extracted; {len(reported)} validation flag(s) recorded."
     _emit(progress, ProgressEvent(company_id, site_id, "done", msg, "warn"))
     return PageScanOutcome(site_id, outcome, 0, reported)

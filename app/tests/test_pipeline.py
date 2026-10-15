@@ -199,15 +199,23 @@ def test_failed_render_keeps_partial_rows_and_counts_once(store, site):
 
 def test_failed_render_partial_rows_do_not_grow_the_flag_list(store, site):
     """Re-scanning an unchanged failing page must not accumulate flags; the
-    list is rebuilt per scan, never extended in place."""
+    list is rebuilt per scan, never extended in place.
+
+    ``first_persisted`` is read while the first scan is still the page's
+    current reading, so it is what that scan wrote. The second scan's stored
+    flags must equal it - not extend it - and the first run's flags are then
+    closed out rather than left open alongside the new ones.
+    """
     fetcher = _Fetcher(tier1=FIXTURE_WITH_CHALLENGE, tier2=None,
                        tier2_flags=[RENDER_TIMEOUT])
 
     first_run, first = _scan(store, site, fetcher)
+    first_persisted = _persisted(store, first_run)
     second_run, second = _scan(store, site, fetcher)
 
     assert len(first.flags) == len(second.flags)
-    assert _persisted(store, first_run) == _persisted(store, second_run)
+    assert _persisted(store, second_run) == first_persisted == _returned(second)
+    assert _persisted(store, first_run) == []
 
 
 # -------------------------------------------------------------- no escalation
@@ -221,6 +229,78 @@ def test_no_escalation_means_no_tier2_flags(store, site):
     assert outcome.rows > 0
     assert "RENDER_TIMEOUT" not in _returned(outcome)
     assert _returned(outcome) == _persisted(store, run)
+
+
+# ------------------------------------------------------- flags across re-scans
+
+HTTP_403 = Flag("HTTP_403_BOTBLOCK", "error", "The site is blocking us.",
+                "Try again later.")
+
+
+def _open_codes(store, site):
+    return [f["code"] for f in store.open_flags(company_id=site["company_id"])]
+
+
+def test_rescanning_a_failing_page_does_not_accumulate_flags(store, site):
+    """One page that keeps failing is one thing to review, not one more a day.
+
+    The company card counts open flags, and nothing ever set
+    ``flags.resolved``, so three scans of the same blocked page showed
+    "3 to review" and the number only ever climbed.
+    """
+    fetcher = _Fetcher(tier1=None, tier1_flags=[HTTP_403])
+
+    counts = []
+    for _ in range(3):
+        _scan(store, site, fetcher)
+        counts.append(len(_open_codes(store, site)))
+
+    assert counts == [1, 1, 1]
+
+
+def test_a_page_that_reads_again_replaces_its_earlier_flags(store, site):
+    """Two blocked scans then a good one must leave the good reading's flags.
+
+    The page's flags describe its current state, not its history: an old 403
+    that no longer happens is not something to review.
+    """
+    blocked = _Fetcher(tier1=None, tier1_flags=[HTTP_403])
+    _scan(store, site, blocked)
+    _scan(store, site, blocked)
+    assert "HTTP_403_BOTBLOCK" in _open_codes(store, site)
+
+    run, outcome = _scan(
+        store, site, _Fetcher(tier1=FIXTURE.read_text(), tier2="<html></html>")
+    )
+
+    assert outcome.rows > 0
+    codes = _open_codes(store, site)
+    assert "HTTP_403_BOTBLOCK" not in codes, "the 403 was re-decided, not left open"
+    assert sorted(codes) == sorted(_persisted(store, run))
+
+
+def test_the_reading_that_just_ran_keeps_its_flags_open(store, site):
+    """Superseding must never close the scan that just wrote the flags - the
+    Data Health sheet and the run summary read this run's flags back."""
+    run, outcome = _scan(store, site, _Fetcher(tier1=None, tier1_flags=[HTTP_403]))
+
+    assert _persisted(store, run) == ["HTTP_403_BOTBLOCK"]
+    assert _open_codes(store, site) == ["HTTP_403_BOTBLOCK"]
+
+
+def test_each_page_of_a_company_keeps_its_own_flags(store, site):
+    """Re-reading one location must not clear another location's flags."""
+    other = store.get_site(
+        store.add_site(site["company_id"], "https://a.example/other", "Elsewhere")
+    )
+    blocked = _Fetcher(tier1=None, tier1_flags=[HTTP_403])
+    _scan(store, other, blocked)
+    _scan(store, site, blocked)
+    _scan(store, site, blocked)
+
+    open_flags = store.open_flags(company_id=site["company_id"])
+    assert {f["site_id"] for f in open_flags} == {site["id"], other["id"]}
+    assert len(open_flags) == 2
 
 
 # ----------------------------------------------------- run summary vs the store
