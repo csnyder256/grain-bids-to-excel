@@ -11,6 +11,7 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 
 from . import styles as ST
 from . import charts as CH
+from .naming import location_display, page_address
 
 # canonical column registry: key -> (header, width, kind)
 COLUMNS = {
@@ -237,7 +238,7 @@ def _cell_value(row, key):
     if key == "company":
         return row.get("company_name")
     if key == "location":
-        return row.get("site_label")
+        return location_display(row.get("site_label"), row.get("site_url"))
     if key == "commodity":
         return row.get("commodity") or row.get("commodity_raw")
     if key == "delivery":
@@ -292,7 +293,12 @@ def write_cover(ws, meta: dict, health: list, best: list, needs_attention: list,
 
     _title_block(
         ws, ncols, "Cash Bid Report",
-        f"Generated {now:%A, %B %d, %Y %I:%M %p} · {meta['company_count']} companies, {meta['bid_count']} bids",
+        # Counted the way every other surface counts them: "1 companies" and
+        # "1 bids" on the cover of a one-company scan read like a bug report.
+        f"Generated {now:%A, %B %d, %Y %I:%M %p} · "
+        f"{meta['company_count']} "
+        f"compan{'y' if meta['company_count'] == 1 else 'ies'}, "
+        f"{meta['bid_count']} bid{'' if meta['bid_count'] == 1 else 's'}",
         "",
         None, eff,
     )
@@ -379,7 +385,7 @@ def write_data_health(ws, health: list, eff, now):
     for h in health:
         ws.cell(row=r, column=1, value=h.company).font = ST.F_BODY
         ws.cell(row=r, column=2, value=h.location).font = ST.F_BODY
-        pc = ws.cell(row=r, column=3, value=(h.url or "").split("//")[-1])
+        pc = ws.cell(row=r, column=3, value=page_address(h.url))
         pc.font = ST.F_LINK if h.url else ST.F_BODY
         if h.url and eff.get("hyperlinks", True):
             pc.hyperlink = Hyperlink(ref=pc.coordinate, target=h.url)
