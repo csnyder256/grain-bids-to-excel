@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
+from .naming import location_display
+
 
 @dataclass
 class PageHealth:
@@ -72,7 +74,8 @@ def compute_health(store, run_id: int, thresholds: dict, now: datetime) -> list[
     for r in rows:
         sid = r["site_id"]
         site_meta.setdefault(sid, {
-            "company": r["company_name"], "location": r.get("site_label") or "",
+            "company": r["company_name"],
+            "location": location_display(r.get("site_label"), r.get("site_url")),
             "url": r.get("site_url") or "", "as_of": r.get("page_as_of"),
             "rows": 0,
         })
@@ -135,7 +138,7 @@ def compute_health(store, run_id: int, thresholds: dict, now: datetime) -> list[
         f = flist[0]
         out.append(PageHealth(
             company=by_id.get(site["company_id"], ""),
-            location=site.get("label") or "",
+            location=location_display(site.get("label"), site["url"]),
             url=site["url"], as_of=None, age_days=None, status="FAILED",
             rows=0, same_as_last="",
             notices=f["message"],
@@ -165,7 +168,8 @@ def best_bids(rows: list[dict], now: datetime, nearby_days: int = 60) -> list[Be
         out.append(BestBid(
             commodity=commodity, window=window, cash_price=r["cash_price"],
             basis=r.get("basis"), delivery_label=r.get("delivery_label") or "",
-            company=r.get("company_name") or "", location=r.get("site_label") or "",
+            company=r.get("company_name") or "",
+            location=location_display(r.get("site_label"), r.get("site_url")),
         ))
     return out
 
