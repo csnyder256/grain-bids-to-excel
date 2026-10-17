@@ -250,23 +250,59 @@ def _deep_merge(base: dict, patch: dict) -> dict:
     return out
 
 
+# One sample value per legal token. A pattern is proved to render with these
+# before it is accepted, so a pattern that cannot produce a filename is
+# rejected while the user is looking at the field rather than later, when a
+# scan quietly fails to write its workbook.
+_SAMPLE_FILENAME_TOKENS = {
+    "date": "2026-01-31",
+    "time": "0730",
+    "company": "Sample Grain Co",
+    "commodity": "CORN",
+    "scan_id": "1",
+}
+
+
 def _check_filename_tokens(doc: dict) -> None:
     import string
 
     patterns = doc.get("output", {}).get("filename_patterns", {})
     fmt = string.Formatter()
     for name, pattern in patterns.items():
-        for _, field_name, _, _ in fmt.parse(pattern):
+        field = f"output.filename_patterns.{name}"
+        try:
+            fields = [field_name for _, field_name, _, _ in fmt.parse(pattern)]
+        except ValueError as exc:
+            # A stray { or } is not a placeholder. Letting the raw ValueError
+            # escape broke the SettingsError contract every caller relies on:
+            # the settings endpoint answered 500 (unhandled) instead of the
+            # field-level 400 the UI shows inline.
+            raise SettingsError(
+                field,
+                "that pattern has a stray { or } - every placeholder looks "
+                "like {date}",
+            ) from exc
+        for field_name in fields:
             if field_name and field_name not in VALID_FILENAME_TOKENS:
                 raise SettingsError(
-                    f"output.filename_patterns.{name}",
+                    field,
                     f"unknown token {{{field_name}}} - valid tokens: "
                     + ", ".join(sorted(VALID_FILENAME_TOKENS)),
                 )
         if not pattern.lower().endswith(".xlsx"):
+            raise SettingsError(field, "must end with .xlsx")
+        # Syntax is not enough: "{date:z}" parses, names only legal tokens and
+        # ends in .xlsx, yet raises when the workbook is built. Render the
+        # pattern here so an unbuildable one is a validation error, not a
+        # spreadsheet that never appears.
+        try:
+            fmt.vformat(pattern, (), _SAMPLE_FILENAME_TOKENS)
+        except (ValueError, KeyError, IndexError) as exc:
             raise SettingsError(
-                f"output.filename_patterns.{name}", "must end with .xlsx"
-            )
+                field,
+                "we couldn't build a filename from that pattern - check the "
+                "{ } placeholders",
+            ) from exc
 
 
 def validate(doc: dict) -> None:
